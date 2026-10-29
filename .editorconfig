@@ -1,0 +1,22 @@
+# https://editorconfig.org: the whitespace rules every editor follows, so
+# formatters and diffs agree whoever wrote the line.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{yml,yaml}]
+indent_size = 2
+
+# gofmt and Caddy's formatter indent with tabs.
+[{*.go,go.mod,Caddyfile}]
+indent_style = tab
+
+# Two trailing spaces are a line break in Markdown.
+[*.md]
+trim_trailing_whitespace = false
