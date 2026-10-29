@@ -20,9 +20,10 @@ setup:
     just e2e setup
     lefthook install
 
-# Build and start the whole stack at http://localhost:8000
+# Build and start the whole stack at http://localhost:8000, then list its containers
 up:
     docker compose up --build --detach --wait
+    docker compose ps
 
 # Stop the stack, keeping the database
 down:
