@@ -6,8 +6,10 @@ front, git hooks, CI/CD on GitHub Actions and Dependabot.
 
 - **api**: Go, `net/http` and Postgres (pgx). `POST /api/links` shortens a URL,
   `GET /api/links` lists them, `GET /r/{code}` redirects and counts the click.
+  Under `/api/admin`, admins search, delete and count the links, logged in with
+  a JWT in an httpOnly cookie.
 - **web**: React and Vite on bun, served by Caddy, which also routes `/api` and
-  `/r` to the api.
+  `/r` to the api. The admin panel is at `/admin`.
 
 ## Quick start
 
@@ -17,6 +19,7 @@ You need Docker, just, Go, bun and lefthook.
 just setup   # .env from .env.example, dependencies, git hooks
 just up      # build and start everything: http://localhost:8000
 just seed    # add a few links
+just admin alice  # an admin for http://localhost:8000/admin; asks for a password
 just logs    # optional: every container's logs in Dozzle, http://localhost:9999
 just down
 ```
@@ -32,7 +35,7 @@ To work on the code with reload, `just dev` runs Postgres in Docker and the api
 
 ```
 apps/
-  api/            Go: cmd/api (the binary), internal/links, migrations/
+  api/            Go: cmd/api (the binary), internal/links and auth, migrations/
   web/            React + Vite, and the Caddyfile it's served with
 e2e/              Playwright tests of the whole stack, run in Docker
 deploy/           compose.yaml for the server: the released images, HTTPS
@@ -73,13 +76,19 @@ browser is installed on your machine (or in CI).
 The deploy job is skipped until there is a server. To add one:
 
 1. On the server (Docker installed), create `~/fullmono/.env` with
-   `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` and `SITE_ADDRESS` (your
-   domain, whose DNS points at the server). Caddy fetches its HTTPS certificate
-   on the first start.
+   `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `SITE_ADDRESS` (your
+   domain, whose DNS points at the server) and `JWT_SECRET`
+   (`openssl rand -base64 32`). Caddy fetches its HTTPS certificate on the
+   first start.
 2. Make the two GHCR packages public, or `docker login ghcr.io` on the server.
 3. In the repository's settings, add the variable `DEPLOY_HOST` (`user@host`)
    and the secrets `DEPLOY_SSH_KEY` (a private key the server accepts) and
    `DEPLOY_KNOWN_HOSTS` (`ssh-keyscan <host>`).
 
 Every release then copies `deploy/compose.yaml` to the server and restarts the
-stack on the new images; migrations run before the api starts.
+stack on the new images; migrations run before the api starts. To add an admin
+there, in `~/fullmono`:
+
+```sh
+read -rsp 'Password: ' p && echo && printf '%s\n' "$p" | docker compose run --rm -T api set-admin alice
+```
