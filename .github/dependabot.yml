@@ -15,14 +15,18 @@ updates:
         patterns: ["*"]
 
   - package-ecosystem: bun
-    directory: /apps/web
+    directories: [/apps/web, /e2e]
     schedule:
       interval: weekly
     cooldown:
       default-days: 14
     groups:
-      web:
+      js:
         patterns: ["*"]
+    # @playwright/test and e2e/Dockerfile's image must name the same version,
+    # which two pull requests (bun, docker) can't: bump both by hand, together.
+    ignore:
+      - dependency-name: "@playwright/test"
 
   # The FROM lines of both Dockerfiles, and the images compose runs.
   - package-ecosystem: docker
