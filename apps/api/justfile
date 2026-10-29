@@ -11,9 +11,14 @@ setup:
 dev:
     go run ./cmd/api
 
-# Run the tests with the race detector
+# The unit tests, with the race detector; the integration tests skip
 test:
     go test -race ./...
+
+# Unit and integration tests, against the database `just db` started.
+# -count=1: Go's test cache can't see the database, so never reuse a result.
+test-integration:
+    TEST_DATABASE_URL="$DATABASE_URL" go test -race -count=1 ./...
 
 # Lint in Docker, so nobody has to install golangci-lint
 lint:

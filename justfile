@@ -56,9 +56,13 @@ psql:
 seed:
     ./scripts/seed.sh
 
-# The api's tests (the web app is type-checked by its build)
+# The unit tests: fast, no Docker, run before every push
 test:
     just api test
+
+# The api's integration tests, against Postgres in Docker
+test-integration: db
+    just api test-integration
 
 # Lint and check formatting, both apps
 lint:
@@ -71,5 +75,5 @@ fmt:
     just web fmt
 
 # What CI checks, run here first
-ci: lint test
+ci: lint test test-integration
     just web build
