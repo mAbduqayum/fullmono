@@ -80,7 +80,7 @@ func serve(port, databaseURL, jwtSecret string) error {
 
 	mux := http.NewServeMux()
 	mux.Handle("/api/admin/session", auth.NewHandler(auth.NewPostgresAdmins(pool), tokens))
-	mux.Handle("/", links.NewHandler(links.NewPostgresStore(pool)))
+	mux.Handle("/", links.NewHandler(links.NewPostgresStore(pool), auth.RequireAdmin(tokens)))
 	server := &http.Server{
 		Addr:              ":" + port,
 		Handler:           httpx.LogRequests(mux),

@@ -8,7 +8,10 @@ import (
 	"math/big"
 	"net/http"
 	"net/url"
+	"strconv"
+	"strings"
 
+	"github.com/mAbduqayum/fullmono/apps/api/internal/auth"
 	"github.com/mAbduqayum/fullmono/apps/api/internal/httpx"
 )
 
@@ -21,6 +24,10 @@ const (
 	maxURLLength   = 2048
 	maxBodyBytes   = 4 << 10
 	listLimit      = 50
+	adminPageSize  = 25
+	// maxAdminPage is far past any real list, and short of overflowing the offset.
+	maxAdminPage = 1 << 20
+	statsTop     = 5
 )
 
 type handler struct {
@@ -28,14 +35,22 @@ type handler struct {
 	newCode func() string
 }
 
-// NewHandler serves the JSON API under /api and the redirects under /r.
-func NewHandler(store Store) http.Handler {
+// NewHandler serves the JSON API under /api and the redirects under /r, and
+// the admin routes under /api/admin to the requests requireAdmin lets through.
+func NewHandler(store Store, requireAdmin func(http.Handler) http.Handler) http.Handler {
 	h := &handler{store: store, newCode: randomCode}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/health", h.health)
 	mux.HandleFunc("GET /api/links", h.list)
 	mux.HandleFunc("POST /api/links", h.create)
 	mux.HandleFunc("GET /r/{code}", h.redirect)
+
+	admin := func(pattern string, handle http.HandlerFunc) {
+		mux.Handle(pattern, requireAdmin(handle))
+	}
+	admin("GET /api/admin/links", h.search)
+	admin("DELETE /api/admin/links/{code}", h.delete)
+	admin("GET /api/admin/stats", h.stats)
 	return mux
 }
 
@@ -95,6 +110,61 @@ func (h *handler) redirect(w http.ResponseWriter, r *http.Request) {
 	}
 	// 302, not 301: browsers cache a permanent redirect and stop asking, so visits would go uncounted.
 	http.Redirect(w, r, target, http.StatusFound)
+}
+
+// searchPage is one page of an admin search, with what paging through it needs.
+type searchPage struct {
+	Links    []Link `json:"links"`
+	Total    int    `json:"total"`
+	PageSize int    `json:"pageSize"`
+}
+
+func (h *handler) search(w http.ResponseWriter, r *http.Request) {
+	page := 1
+	if raw := r.URL.Query().Get("page"); raw != "" {
+		n, err := strconv.Atoi(raw)
+		if err != nil || n < 1 || n > maxAdminPage {
+			httpx.Error(w, http.StatusBadRequest, "page must be a whole number from 1")
+			return
+		}
+		page = n
+	}
+	query := strings.TrimSpace(r.URL.Query().Get("q"))
+	if len(query) > maxURLLength {
+		httpx.Error(w, http.StatusBadRequest, "the search is too long")
+		return
+	}
+	links, total, err := h.store.Search(r.Context(), query, adminPageSize, (page-1)*adminPageSize)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, searchPage{Links: links, Total: total, PageSize: adminPageSize})
+}
+
+func (h *handler) delete(w http.ResponseWriter, r *http.Request) {
+	code := r.PathValue("code")
+	err := h.store.Delete(r.Context(), code)
+	if errors.Is(err, ErrNotFound) {
+		httpx.Error(w, http.StatusNotFound, "no link has that code")
+		return
+	}
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	// Who deleted what, for whoever asks later.
+	slog.InfoContext(r.Context(), "link deleted", "code", code, "admin", auth.Admin(r.Context()))
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *handler) stats(w http.ResponseWriter, r *http.Request) {
+	stats, err := h.store.Stats(r.Context(), statsTop)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	httpx.JSON(w, http.StatusOK, stats)
 }
 
 func (h *handler) fail(w http.ResponseWriter, r *http.Request, err error) {
