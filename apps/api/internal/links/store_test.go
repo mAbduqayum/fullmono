@@ -1,65 +1,17 @@
 package links
 
 import (
-	"context"
 	"errors"
-	"fmt"
-	"net/url"
-	"os"
 	"testing"
-	"time"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
-
-	"github.com/mAbduqayum/fullmono/apps/api/migrations"
+	"github.com/mAbduqayum/fullmono/apps/api/internal/pgtest"
 )
 
 // Integration tests: PostgresStore against a real Postgres, which is the only
-// way to check its SQL, the migrations and what the unique index does. They're
-// slower and need a server, so they skip unless TEST_DATABASE_URL names one:
-// `just test-integration` here, a `services:` container in CI.
+// way to check its SQL, the migrations and what the unique index does.
 
-// testStore returns a PostgresStore on a database of its own, created and
-// migrated for this test and dropped after it, so no test sees another's rows
-// or the dev data.
 func testStore(t *testing.T) *PostgresStore {
-	t.Helper()
-	serverURL := os.Getenv("TEST_DATABASE_URL")
-	if serverURL == "" {
-		t.Skip("TEST_DATABASE_URL is unset; `just test-integration` runs this against Postgres")
-	}
-	admin, err := pgx.Connect(t.Context(), serverURL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	name := fmt.Sprintf("test_%d", time.Now().UnixNano())
-	if _, err := admin.Exec(t.Context(), "CREATE DATABASE "+name); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		// t.Context() is already cancelled when cleanups run.
-		ctx := context.Background()
-		if _, err := admin.Exec(ctx, "DROP DATABASE "+name+" WITH (FORCE)"); err != nil {
-			t.Error(err)
-		}
-		_ = admin.Close(ctx)
-	})
-
-	u, err := url.Parse(serverURL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	u.Path = "/" + name
-	if err := migrations.Up(u.String()); err != nil {
-		t.Fatal(err)
-	}
-	pool, err := pgxpool.New(t.Context(), u.String())
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(pool.Close)
-	return NewPostgresStore(pool)
+	return NewPostgresStore(pgtest.Pool(t))
 }
 
 func TestPostgresStoreListsNewestFirst(t *testing.T) {

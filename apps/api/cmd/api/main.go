@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/mAbduqayum/fullmono/apps/api/internal/httpx"
 	"github.com/mAbduqayum/fullmono/apps/api/internal/links"
 	"github.com/mAbduqayum/fullmono/apps/api/migrations"
 )
@@ -64,7 +65,7 @@ func serve(port, databaseURL string) error {
 
 	server := &http.Server{
 		Addr:              ":" + port,
-		Handler:           links.NewHandler(links.NewPostgresStore(pool)),
+		Handler:           httpx.LogRequests(links.NewHandler(links.NewPostgresStore(pool))),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 	failed := make(chan error, 1)
