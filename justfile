@@ -96,10 +96,13 @@ test-integration: db
 # The end-to-end tests: a browser in Docker against the whole stack; `just e2e report` shows the result
 test-e2e: up
     #!/usr/bin/env bash
+    # The admin the tests log in as, with a new random password every run.
+    export ADMIN_PASSWORD=$(head -c 18 /dev/urandom | base64)
+    printf '%s\n' "$ADMIN_PASSWORD" | docker compose run --rm -T api set-admin e2e || exit
     # The report is copied out of the container, not written to a mounted
     # folder, where its files would belong to root.
     docker rm --force fullmono-e2e >/dev/null 2>&1
-    docker compose --profile e2e run --build --name fullmono-e2e e2e
+    docker compose --profile e2e run --build --name fullmono-e2e -e ADMIN_PASSWORD e2e
     status=$?
     rm -rf e2e/playwright-report
     docker cp --quiet fullmono-e2e:/e2e/playwright-report e2e/
