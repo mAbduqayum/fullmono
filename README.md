@@ -21,6 +21,10 @@ just logs    # optional: every container's logs in Dozzle, http://localhost:9999
 just down
 ```
 
+`just up` ends by listing the containers. The site is the `web` one, Caddy, at
+the port its PORTS column shows (`0.0.0.0:8000->80/tcp`). If something else on
+your machine already has 8000, set `WEB_PORT` in `.env` and run `just up` again.
+
 To work on the code with reload, `just dev` runs Postgres in Docker and the api
 (`:8080`) and Vite (`:5173`) on your machine. `just` lists every recipe.
 
