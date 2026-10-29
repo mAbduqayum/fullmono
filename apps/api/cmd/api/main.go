@@ -45,7 +45,7 @@ func run(args []string) error {
 	}
 	databaseURL := os.Getenv("DATABASE_URL")
 	if len(args) == 0 {
-		return serve(port, databaseURL)
+		return serve(port, databaseURL, os.Getenv("JWT_SECRET"))
 	}
 	switch args[0] {
 	case "migrate":
@@ -62,7 +62,12 @@ func run(args []string) error {
 	}
 }
 
-func serve(port, databaseURL string) error {
+func serve(port, databaseURL, jwtSecret string) error {
+	tokens, err := auth.NewTokens(jwtSecret)
+	if err != nil {
+		return err
+	}
+
 	// Ctrl+C, or the SIGTERM `docker stop` sends, starts a graceful shutdown.
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -73,9 +78,12 @@ func serve(port, databaseURL string) error {
 	}
 	defer pool.Close()
 
+	mux := http.NewServeMux()
+	mux.Handle("/api/admin/session", auth.NewHandler(auth.NewPostgresAdmins(pool), tokens))
+	mux.Handle("/", links.NewHandler(links.NewPostgresStore(pool)))
 	server := &http.Server{
 		Addr:              ":" + port,
-		Handler:           httpx.LogRequests(links.NewHandler(links.NewPostgresStore(pool))),
+		Handler:           httpx.LogRequests(mux),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 	failed := make(chan error, 1)

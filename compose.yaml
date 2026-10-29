@@ -36,6 +36,8 @@ services:
     build: apps/api
     environment:
       DATABASE_URL: *database-url
+      # :? stops compose with this message when .env doesn't set it.
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env, see .env.example}
     depends_on:
       migrate:
         condition: service_completed_successfully

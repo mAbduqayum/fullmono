@@ -1,13 +1,14 @@
 # Production, on the server: the images CI pushed, never a build.
 # The release workflow copies this file to the server and runs
 #   TAG=<commit sha> docker compose pull && docker compose up --detach --wait
-# next to a .env holding POSTGRES_* and SITE_ADDRESS (the domain).
+# next to a .env holding POSTGRES_*, SITE_ADDRESS (the domain) and JWT_SECRET.
 name: fullmono
 
 x-api: &api
   image: ghcr.io/mabduqayum/fullmono-api:${TAG:-latest}
   environment:
     DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable
+    JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in the server's .env}
 
 services:
   db:
