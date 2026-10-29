@@ -11,8 +11,7 @@ front, git hooks, CI/CD on GitHub Actions and Dependabot.
 
 ## Quick start
 
-You need Docker, [just](https://just.systems), Go, [bun](https://bun.sh) and
-[lefthook](https://lefthook.dev).
+You need Docker, just, Go, bun and lefthook.
 
 ```sh
 just setup   # .env from .env.example, dependencies, git hooks
