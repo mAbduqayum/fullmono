@@ -1,0 +1,41 @@
+# Git hooks, installed by `just setup` (`lefthook install`).
+# Each job sees only the staged files under its root, and runs in that folder.
+
+pre-commit:
+  parallel: true
+  jobs:
+    - name: api format
+      root: apps/api/
+      glob: "*.go"
+      run: gofmt -w {staged_files}
+      stage_fixed: true
+
+    - name: api vet
+      root: apps/api/
+      glob: "*.go"
+      run: go vet ./...
+
+    - name: web format
+      root: apps/web/
+      glob: "*.{ts,tsx,json,css}"
+      run: bunx oxfmt {staged_files}
+      stage_fixed: true
+
+    - name: web lint
+      root: apps/web/
+      glob: "*.{ts,tsx}"
+      run: bunx oxlint {staged_files}
+
+commit-msg:
+  jobs:
+    - name: conventional commit
+      run: |
+        if ! head -1 {1} | grep -qE '^(new|fix|docs|style|ref|perf|test|chore|build|ci|revert)(\(.+\))?!?: .+'; then
+          echo "Start the message with a type, like 'new: links expire' or 'fix(api): …'"
+          exit 1
+        fi
+
+pre-push:
+  jobs:
+    - name: test
+      run: just test
