@@ -29,6 +29,7 @@ down:
     docker compose down
 
 # Stop the stack and delete the database
+[confirm("Delete the database and every link in it? [y/N]")]
 reset:
     docker compose down --volumes
 
