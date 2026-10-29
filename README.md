@@ -16,11 +16,11 @@ front, git hooks, CI/CD on GitHub Actions and Dependabot.
 You need Docker, just, Go, bun and lefthook.
 
 ```sh
-just setup   # .env from .env.example, dependencies, git hooks
-just up      # build and start everything: http://localhost:8000
-just seed    # add a few links
+just setup        # .env from .env.example, dependencies, git hooks
+just up           # build and start everything: http://localhost:8000
+just seed         # add a few links
 just admin alice  # an admin for http://localhost:8000/admin; asks for a password
-just logs    # optional: every container's logs in Dozzle, http://localhost:9999
+just logs         # optional: every container's logs in Dozzle, http://localhost:9999
 just down
 ```
 
