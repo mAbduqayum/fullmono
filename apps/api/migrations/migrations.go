@@ -14,7 +14,9 @@ import (
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 )
 
-//go:embed *.sql
+// The numbered migrations only: schema.sql is their sum, for reading.
+//
+//go:embed *.up.sql *.down.sql
 var files embed.FS
 
 // Up applies every migration the database doesn't have yet.
