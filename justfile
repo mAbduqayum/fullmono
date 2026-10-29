@@ -74,6 +74,16 @@ schema: db
 seed:
     ./scripts/seed.sh
 
+# Create an admin for http://localhost:8000/admin, or change their password
+[positional-arguments]
+admin username:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    read -rsp "Password for $1 (12 characters or more): " password
+    echo
+    # Piped in, so the password never shows in the process list or the shell's history.
+    printf '%s\n' "$password" | docker compose run --rm --build -T api set-admin "$1"
+
 # The unit tests, both apps: fast, no Docker, run before every push
 test:
     just api test

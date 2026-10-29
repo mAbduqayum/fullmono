@@ -1,22 +1,27 @@
 // Command api serves the URL shortener: its JSON API and its redirects.
 //
-//	api              serve on $PORT (8080)
-//	api migrate      apply the database migrations, then exit
-//	api healthcheck  exit 0 if the server answers /api/health
+//	api                  serve on $PORT (8080)
+//	api migrate          apply the database migrations, then exit
+//	api healthcheck      exit 0 if the server answers /api/health
+//	api set-admin <name> create an admin, or change their password: the first line on stdin
 package main
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/mAbduqayum/fullmono/apps/api/internal/auth"
 	"github.com/mAbduqayum/fullmono/apps/api/internal/httpx"
 	"github.com/mAbduqayum/fullmono/apps/api/internal/links"
 	"github.com/mAbduqayum/fullmono/apps/api/migrations"
@@ -47,8 +52,13 @@ func run(args []string) error {
 		return migrations.Up(databaseURL)
 	case "healthcheck":
 		return healthcheck(port)
+	case "set-admin":
+		if len(args) != 2 {
+			return errors.New("usage: api set-admin <username>, with the password on stdin")
+		}
+		return setAdmin(databaseURL, args[1], os.Stdin)
 	default:
-		return fmt.Errorf("unknown command %q: want migrate or healthcheck", args[0])
+		return fmt.Errorf("unknown command %q: want migrate, healthcheck or set-admin", args[0])
 	}
 }
 
@@ -104,5 +114,32 @@ func healthcheck(port string) error {
 	if res.StatusCode != http.StatusOK {
 		return fmt.Errorf("health check: %s", res.Status)
 	}
+	return nil
+}
+
+// setAdmin reads the password from stdin, not from an argument, so it never
+// shows in the process list or the shell's history.
+func setAdmin(databaseURL, username string, stdin io.Reader) error {
+	if err := auth.CheckUsername(username); err != nil {
+		return err
+	}
+	line, err := bufio.NewReader(stdin).ReadString('\n')
+	if err != nil && !errors.Is(err, io.EOF) {
+		return fmt.Errorf("read the password: %w", err)
+	}
+	hash, err := auth.HashPassword(strings.TrimRight(line, "\r\n"))
+	if err != nil {
+		return err
+	}
+	ctx := context.Background()
+	pool, err := pgxpool.New(ctx, databaseURL)
+	if err != nil {
+		return fmt.Errorf("connect to postgres: %w", err)
+	}
+	defer pool.Close()
+	if err := auth.NewPostgresAdmins(pool).Set(ctx, username, hash); err != nil {
+		return err
+	}
+	slog.Info("admin set", "username", username)
 	return nil
 }
