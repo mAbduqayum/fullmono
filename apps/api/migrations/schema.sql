@@ -1,108 +1,20 @@
--- The schema the migrations add up to, written by `just schema`. Change it with a migration.
---
--- PostgreSQL database dump
---
+-- The schema the migrations add up to, in one place to read. The migrations
+-- are what runs: a migration that changes the schema updates this file too.
 
-SET statement_timeout = 0;
-SET lock_timeout = 0;
-SET idle_in_transaction_session_timeout = 0;
-SET transaction_timeout = 0;
-SET client_encoding = 'UTF8';
-SET standard_conforming_strings = on;
-SELECT pg_catalog.set_config('search_path', '', false);
-SET check_function_bodies = false;
-SET xmloption = content;
-SET client_min_messages = warning;
-SET row_security = off;
-
-SET default_tablespace = '';
-
-SET default_table_access_method = heap;
-
---
--- Name: admins; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.admins (
-    id bigint NOT NULL,
-    username text NOT NULL,
-    password_hash text NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
+CREATE TABLE links (
+    id         bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    code       text        NOT NULL UNIQUE,
+    url        text        NOT NULL,
+    clicks     bigint      NOT NULL DEFAULT 0,
+    created_at timestamptz NOT NULL DEFAULT now()
 );
 
---
--- Name: admins_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
+CREATE INDEX links_created_at_idx ON links (created_at DESC);
 
-ALTER TABLE public.admins ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
-    SEQUENCE NAME public.admins_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1
+CREATE TABLE admins (
+    id            bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    username      text        NOT NULL UNIQUE,
+    -- bcrypt's output, which holds its own salt and cost; never the password.
+    password_hash text        NOT NULL,
+    created_at    timestamptz NOT NULL DEFAULT now()
 );
-
---
--- Name: links; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.links (
-    id bigint NOT NULL,
-    code text NOT NULL,
-    url text NOT NULL,
-    clicks bigint DEFAULT 0 NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
-);
-
---
--- Name: links_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-ALTER TABLE public.links ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
-    SEQUENCE NAME public.links_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1
-);
-
---
--- Name: admins admins_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.admins
-    ADD CONSTRAINT admins_pkey PRIMARY KEY (id);
-
---
--- Name: admins admins_username_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.admins
-    ADD CONSTRAINT admins_username_key UNIQUE (username);
-
---
--- Name: links links_code_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.links
-    ADD CONSTRAINT links_code_key UNIQUE (code);
-
---
--- Name: links links_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.links
-    ADD CONSTRAINT links_pkey PRIMARY KEY (id);
-
---
--- Name: links_created_at_idx; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX links_created_at_idx ON public.links USING btree (created_at DESC);
-
---
--- PostgreSQL database dump complete
---
-

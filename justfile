@@ -56,20 +56,6 @@ logs:
 psql:
     docker compose exec db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 
-# Write the migrated schema to apps/api/migrations/schema.sql; commit it with the migration that changed it
-schema: db
-    #!/usr/bin/env bash
-    set -euo pipefail
-    # Structure only: no rows, owners, grants, or the migrator's own table.
-    # The sed drops what changes on every dump (the Postgres version, and
-    # \restrict's random key), so the file changes only when the schema does.
-    {
-        echo '-- The schema the migrations add up to, written by `just schema`. Change it with a migration.'
-        docker compose exec -T db sh -c \
-            'pg_dump --schema-only --no-owner --no-privileges --exclude-table=schema_migrations -U "$POSTGRES_USER" "$POSTGRES_DB"' \
-            | sed -E '/^-- Dumped (from|by)/d; /^\\(un)?restrict /d'
-    } | cat -s > apps/api/migrations/schema.sql
-
 # A few links to click around with
 seed:
     ./scripts/seed.sh
