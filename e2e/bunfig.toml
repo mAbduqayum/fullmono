@@ -1,0 +1,4 @@
+[install]
+# Only install versions published at least two weeks ago, in seconds: most
+# malicious releases are caught and pulled within days.
+minimumReleaseAge = 1209600

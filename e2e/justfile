@@ -1,0 +1,19 @@
+# The end-to-end tests' recipes: `just e2e <recipe>` from the root, or `just <recipe>` here.
+# The tests themselves run in Docker, against the whole stack: `just test-e2e` at the root.
+
+# Install the packages, for your editor and the git hooks
+setup:
+    bun install
+
+# Lint, then check formatting
+lint:
+    bun run lint
+    bun run format:check
+
+# Format the code
+fmt:
+    bun run format
+
+# Open the last run's report, with each failed test's trace
+report:
+    bunx playwright show-report

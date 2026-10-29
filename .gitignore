@@ -5,6 +5,8 @@
 node_modules/
 dist/
 bin/
+playwright-report/
+test-results/
 
 # Editors and OSes
 .idea/

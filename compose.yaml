@@ -45,8 +45,28 @@ services:
     build: apps/web
     ports:
       - ${WEB_PORT:-8000}:80
+    # Here, not in the Dockerfile: on a server, Caddy answers on the domain's name instead.
+    healthcheck:
+      test: [CMD, wget, -q, --spider, http://localhost/]
+      interval: 2s
+      timeout: 3s
+      retries: 15
     depends_on:
       api:
+        condition: service_healthy
+
+  # End-to-end tests: Chromium, in Playwright's image, against the stack through
+  # Caddy, like a visitor. The profile keeps it out of `just up`; `just test-e2e` runs it.
+  e2e:
+    build: e2e
+    profiles: [e2e]
+    environment:
+      BASE_URL: http://web
+      CI: ${CI:-}
+    # Chromium needs more shared memory than Docker's default 64 MB.
+    ipc: host
+    depends_on:
+      web:
         condition: service_healthy
 
   # Optional: a log viewer for every container, at http://localhost:9999.

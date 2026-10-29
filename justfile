@@ -5,6 +5,7 @@ set dotenv-load
 
 mod api 'apps/api'
 mod web 'apps/web'
+mod e2e
 
 # List the recipes, in this file's order
 [private]
@@ -16,6 +17,7 @@ setup:
     [ -f .env ] || cp .env.example .env
     just api setup
     just web setup
+    just e2e setup
     lefthook install
 
 # Build and start the whole stack at http://localhost:8000
@@ -65,16 +67,32 @@ test:
 test-integration: db
     just api test-integration
 
-# Lint and check formatting, both apps
+# The end-to-end tests: a browser in Docker against the whole stack; `just e2e report` shows the result
+test-e2e: up
+    #!/usr/bin/env bash
+    # The report is copied out of the container, not written to a mounted
+    # folder, where its files would belong to root.
+    docker rm --force fullmono-e2e >/dev/null 2>&1
+    docker compose --profile e2e run --build --name fullmono-e2e e2e
+    status=$?
+    rm -rf e2e/playwright-report
+    docker cp --quiet fullmono-e2e:/e2e/playwright-report e2e/
+    docker rm fullmono-e2e >/dev/null
+    exit $status
+
+# Lint and check formatting, everywhere
 lint:
     just api lint
     just web lint
+    just e2e lint
 
-# Format both apps
+# Format everything
 fmt:
     just api fmt
     just web fmt
+    just e2e fmt
 
 # What CI checks, run here first
 ci: lint test test-integration
     just web build
+    just test-e2e

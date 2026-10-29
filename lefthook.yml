@@ -26,6 +26,17 @@ pre-commit:
       glob: "*.{ts,tsx}"
       run: bunx oxlint {staged_files}
 
+    - name: e2e format
+      root: e2e/
+      glob: "*.{ts,json}"
+      run: bunx oxfmt {staged_files}
+      stage_fixed: true
+
+    - name: e2e lint
+      root: e2e/
+      glob: "*.ts"
+      run: bunx oxlint {staged_files}
+
 commit-msg:
   jobs:
     - name: conventional commit
@@ -35,6 +46,7 @@ commit-msg:
           exit 1
         fi
 
+# Only the unit tests: a push shouldn't wait on Docker. CI runs the rest.
 pre-push:
   jobs:
     - name: test
