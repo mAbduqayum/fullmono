@@ -14,7 +14,7 @@ import {
 /** A 401: no login, or one that has expired. */
 const loggedOut = (error: unknown) => error instanceof ApiError && error.status === 401;
 
-const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? "" : "s"}`;
+const plural = (n: number, noun: string) => (n === 1 ? noun : `${noun}s`);
 
 /** /admin: the login form, or the panel once the api knows who's here. */
 export default function Admin() {
@@ -59,9 +59,10 @@ function LogInForm({ onLogIn }: { onLogIn: (username: string) => void }) {
     };
 
     return (
-        <>
+        <section className="card login">
             <h1>fullmono admin</h1>
-            <form className="login" onSubmit={submit}>
+            <p className="lead">Log in to manage the links.</p>
+            <form onSubmit={submit}>
                 <label>
                     Username
                     <input name="username" autoComplete="username" required />
@@ -75,12 +76,12 @@ function LogInForm({ onLogIn }: { onLogIn: (username: string) => void }) {
                         required
                     />
                 </label>
-                <button type="submit" disabled={sending}>
+                <button type="submit" className="primary" disabled={sending}>
                     Log in
                 </button>
             </form>
             {error && <p className="error">{error}</p>}
-        </>
+        </section>
     );
 }
 
@@ -144,10 +145,12 @@ function Panel({ admin, onLogOut }: { admin: string; onLogOut: () => void }) {
     const pages = found ? Math.max(1, Math.ceil(found.total / found.pageSize)) : 1;
     return (
         <>
-            <header>
+            <header className="bar">
                 <h1>fullmono admin</h1>
                 <p>
-                    Logged in as <strong>{admin}</strong>{" "}
+                    <span>
+                        Logged in as <strong>{admin}</strong>
+                    </span>
                     <button type="button" onClick={leave}>
                         Log out
                     </button>
@@ -156,100 +159,120 @@ function Panel({ admin, onLogOut }: { admin: string; onLogOut: () => void }) {
             {error && <p className="error">{error}</p>}
 
             {stats && (
-                <section aria-label="Stats">
-                    <p className="totals">
-                        {count(stats.links, "link")}, {count(stats.clicks, "click")}
-                    </p>
-                    {stats.top.length > 0 && (
-                        <>
-                            <h2>Most clicked</h2>
-                            <ul>
+                <section className="stats" aria-label="Stats">
+                    <ul className="totals" aria-label="Totals">
+                        <Total n={stats.links} noun="link" />
+                        <Total n={stats.clicks} noun="click" />
+                    </ul>
+                    <div className="card top">
+                        <h2>Most clicked</h2>
+                        {stats.top.length === 0 ? (
+                            <p>No clicks yet.</p>
+                        ) : (
+                            <ol>
                                 {stats.top.map((link) => (
                                     <li key={link.code}>
-                                        <span>{link.code}</span>
-                                        <span className="target">{link.url}</span>
-                                        <span className="clicks">
-                                            {count(link.clicks, "click")}
+                                        <span className="code">{link.code}</span>
+                                        <span className="url">{link.url}</span>
+                                        <span className="num">
+                                            {link.clicks.toLocaleString()}{" "}
+                                            {plural(link.clicks, "click")}
                                         </span>
                                     </li>
                                 ))}
-                            </ul>
-                        </>
-                    )}
+                            </ol>
+                        )}
+                    </div>
                 </section>
             )}
 
-            <h2>Links</h2>
-            <form role="search" onSubmit={search}>
-                <input
-                    type="search"
-                    aria-label="Search links"
-                    placeholder="A code, or part of a URL"
-                    value={typed}
-                    onChange={(event) => setTyped(event.target.value)}
-                />
-                <button type="submit">Search</button>
-            </form>
-            {found && found.total === 0 && (
-                <p className="lead">{query ? `No link matches "${query}".` : "No links yet."}</p>
-            )}
-            {found && found.total > 0 && (
-                <>
-                    <div className="table">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Code</th>
-                                    <th>URL</th>
-                                    <th>Clicks</th>
-                                    <th>Created</th>
-                                    <th aria-label="Actions" />
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {found.links.map((link) => (
-                                    <tr key={link.code}>
-                                        <td>{link.code}</td>
-                                        <td className="url" title={link.url}>
-                                            {link.url}
-                                        </td>
-                                        <td>{link.clicks}</td>
-                                        <td>{new Date(link.createdAt).toLocaleDateString()}</td>
-                                        <td>
-                                            <button
-                                                type="button"
-                                                aria-label={`Delete ${link.code}`}
-                                                onClick={() => remove(link)}
-                                            >
-                                                Delete
-                                            </button>
-                                        </td>
+            <section className="card" aria-labelledby="links-heading">
+                <div className="card-head">
+                    <h2 id="links-heading">Links</h2>
+                    <form className="inline" role="search" onSubmit={search}>
+                        <input
+                            type="search"
+                            aria-label="Search links"
+                            placeholder="A code, or part of a URL"
+                            value={typed}
+                            onChange={(event) => setTyped(event.target.value)}
+                        />
+                        <button type="submit">Search</button>
+                    </form>
+                </div>
+                {found && found.total === 0 && (
+                    <p className="empty">
+                        {query ? `No link matches "${query}".` : "No links yet."}
+                    </p>
+                )}
+                {found && found.total > 0 && (
+                    <>
+                        <div className="table">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Code</th>
+                                        <th>URL</th>
+                                        <th className="num">Clicks</th>
+                                        <th>Created</th>
+                                        <th aria-label="Actions" />
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                    <nav className="pager" aria-label="Pages">
-                        <button
-                            type="button"
-                            disabled={page === 1}
-                            onClick={() => setPage(page - 1)}
-                        >
-                            Newer
-                        </button>
-                        <span>
-                            Page {page} of {pages}
-                        </span>
-                        <button
-                            type="button"
-                            disabled={page >= pages}
-                            onClick={() => setPage(page + 1)}
-                        >
-                            Older
-                        </button>
-                    </nav>
-                </>
-            )}
+                                </thead>
+                                <tbody>
+                                    {found.links.map((link) => (
+                                        <tr key={link.code}>
+                                            <td className="code">{link.code}</td>
+                                            <td className="url" title={link.url}>
+                                                {link.url}
+                                            </td>
+                                            <td className="num">{link.clicks.toLocaleString()}</td>
+                                            <td>{new Date(link.createdAt).toLocaleDateString()}</td>
+                                            <td className="num">
+                                                <button
+                                                    type="button"
+                                                    className="danger"
+                                                    aria-label={`Delete ${link.code}`}
+                                                    onClick={() => remove(link)}
+                                                >
+                                                    Delete
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        <nav className="pager" aria-label="Pages">
+                            <button
+                                type="button"
+                                disabled={page === 1}
+                                onClick={() => setPage(page - 1)}
+                            >
+                                Newer
+                            </button>
+                            <span>
+                                Page {page} of {pages}
+                            </span>
+                            <button
+                                type="button"
+                                disabled={page >= pages}
+                                onClick={() => setPage(page + 1)}
+                            >
+                                Older
+                            </button>
+                        </nav>
+                    </>
+                )}
+            </section>
         </>
+    );
+}
+
+/** One of the totals: the figure large, what it counts under it. */
+function Total({ n, noun }: { n: number; noun: string }) {
+    return (
+        <li className="card">
+            <strong>{n.toLocaleString()}</strong> {plural(n, noun)}
+        </li>
     );
 }

@@ -1,56 +1,173 @@
+/* The colours both pages use, light and dark: light-dark() picks one by the
+   visitor's system setting, which color-scheme opts into. */
 :root {
     color-scheme: light dark;
+    --bg: light-dark(#f4f5f7, #0f1115);
+    --surface: light-dark(#ffffff, #181b21);
+    --border: light-dark(#e1e4e9, #2b2f38);
+    --text: light-dark(#17191e, #e6e8ec);
+    --muted: light-dark(#5e6571, #9aa2af);
+    --accent: light-dark(#0b7a6e, #3fcab5);
+    --on-accent: light-dark(#ffffff, #08201c);
+    --danger: light-dark(#c42b2b, #ff7b7b);
+    --radius: 10px;
     font-family: system-ui, sans-serif;
     line-height: 1.5;
+    color: var(--text);
+    background: var(--bg);
+}
+
+body {
+    margin: 0;
 }
 
 main {
     max-width: 40rem;
-    margin: 4rem auto;
-    padding: 0 1rem;
+    margin: 0 auto;
+    padding: 4rem 1rem;
+}
+
+h1 {
+    margin: 0;
+    font-size: 1.75rem;
+    letter-spacing: -0.01em;
+}
+
+h2 {
+    margin: 0;
+    font-size: 1rem;
+}
+
+a {
+    color: var(--accent);
 }
 
 .lead {
-    color: GrayText;
+    margin: 0.25rem 0 1.5rem;
+    color: var(--muted);
 }
 
-form {
-    display: flex;
-    gap: 0.5rem;
+.code {
+    font-family: ui-monospace, monospace;
 }
+
+/* Controls */
 
 input {
-    flex: 1;
     min-width: 0;
     padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    color: inherit;
     font: inherit;
 }
 
 button {
     padding: 0.5rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    color: inherit;
     font: inherit;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+    border-color: var(--muted);
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+button.primary {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: var(--on-accent);
+}
+
+button.primary:hover:not(:disabled) {
+    filter: brightness(1.1);
+}
+
+button.danger {
+    padding: 0.25rem 0.625rem;
+    border-color: transparent;
+    background: none;
+    color: var(--danger);
+}
+
+button.danger:hover {
+    background: color-mix(in srgb, var(--danger) 12%, transparent);
+}
+
+input:focus-visible,
+button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
+
+/* A row: an input that takes the room, and its button. */
+.inline {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.inline input {
+    flex: 1;
 }
 
 .error {
-    color: crimson;
+    margin: 1rem 0;
+    padding: 0.625rem 0.875rem;
+    border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--danger) 8%, transparent);
+    color: var(--danger);
 }
 
-ul {
+.card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+}
+
+/* The shortener */
+
+.links {
+    margin: 1.5rem 0 0;
     padding: 0;
     list-style: none;
 }
 
-li {
+.links:empty {
+    display: none;
+}
+
+.links li {
     display: grid;
     grid-template-columns: 1fr auto;
-    padding: 0.75rem 0;
-    border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+    gap: 0 1rem;
+    padding: 0.75rem 1rem;
+}
+
+.links li + li {
+    border-top: 1px solid var(--border);
+}
+
+.links a {
+    font-weight: 500;
+    text-decoration: none;
 }
 
 .target {
     grid-column: 1;
     overflow: hidden;
-    color: GrayText;
+    color: var(--muted);
     text-overflow: ellipsis;
     white-space: nowrap;
 }
@@ -59,35 +176,139 @@ li {
     grid-row: 1 / 3;
     grid-column: 2;
     align-self: center;
-    color: GrayText;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
 }
 
 /* The admin panel, at /admin */
 
 main.admin {
-    max-width: 60rem;
+    max-width: 64rem;
+    padding-top: 2rem;
 }
 
-header {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0 1rem;
-    align-items: baseline;
-    justify-content: space-between;
+.login {
+    max-width: 22rem;
+    margin: 4rem auto 0;
+    padding: 2rem;
 }
 
-form.login {
-    flex-direction: column;
-    max-width: 20rem;
+.login form {
+    display: grid;
+    gap: 1rem;
 }
 
-label {
+.login label {
     display: grid;
     gap: 0.25rem;
+    font-weight: 500;
 }
 
+.bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+}
+
+.bar p {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    margin: 0;
+    color: var(--muted);
+}
+
+.bar strong {
+    color: var(--text);
+}
+
+.stats {
+    display: grid;
+    grid-template-columns: minmax(0, 16rem) minmax(0, 1fr);
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+/* Stacked, sharing the height of the most clicked beside them. */
 .totals {
-    font-size: 1.25rem;
+    display: grid;
+    grid-auto-rows: 1fr;
+    gap: 1rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.totals li {
+    padding: 1rem 1.25rem;
+    color: var(--muted);
+}
+
+.totals strong {
+    display: block;
+    color: var(--text);
+    font-size: 2rem;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2;
+}
+
+.top {
+    padding: 1rem 1.25rem;
+}
+
+.top ol {
+    margin: 0.5rem 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.top li {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 1rem;
+    padding: 0.25rem 0;
+}
+
+.top p {
+    margin: 0.5rem 0 0;
+    color: var(--muted);
+}
+
+/* Narrower than a tablet: the totals side by side, above the most clicked. */
+@media (width < 44rem) {
+    .stats {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .totals {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+.card-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1rem;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+}
+
+.card-head form {
+    flex: 1 1 16rem;
+    min-width: 0;
+    max-width: 26rem;
+}
+
+.empty {
+    margin: 0;
+    padding: 2rem 1.25rem;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    text-align: center;
 }
 
 /* Wider than a phone: it scrolls sideways, not the page. */
@@ -97,27 +318,73 @@ label {
 
 table {
     width: 100%;
-    margin-top: 1rem;
     border-collapse: collapse;
 }
 
 th,
 td {
-    padding: 0.5rem;
-    border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+    padding: 0.625rem 1.25rem;
+    border-top: 1px solid var(--border);
     text-align: left;
+    white-space: nowrap;
+}
+
+th {
+    color: var(--muted);
+    font-size: 0.8125rem;
+    font-weight: 500;
+}
+
+tbody tr:hover {
+    background: color-mix(in srgb, var(--text) 4%, transparent);
+}
+
+.num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.url {
+    overflow: hidden;
+    color: var(--muted);
+    text-overflow: ellipsis;
     white-space: nowrap;
 }
 
 td.url {
     max-width: 24rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .pager {
     display: flex;
+    gap: 1rem;
     align-items: center;
     justify-content: space-between;
-    margin-top: 1rem;
+    padding: 0.75rem 1.25rem;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    white-space: nowrap;
+}
+
+/* A phone: less padding inside the cards. */
+@media (width < 30rem) {
+    .card-head,
+    .pager,
+    .top,
+    .totals li {
+        padding-inline: 1rem;
+    }
+
+    th,
+    td {
+        padding-inline: 0.75rem 0.5rem;
+    }
+
+    .pager {
+        gap: 0.5rem;
+    }
+
+    .pager button {
+        padding-inline: 0.75rem;
+    }
 }

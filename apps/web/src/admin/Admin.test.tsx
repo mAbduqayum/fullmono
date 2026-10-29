@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
 import type { Link } from "../api";
@@ -55,6 +55,14 @@ function linksApi(links: Link[]): Record<string, Route> {
     };
 }
 
+/** The totals as they read, once the panel has them. */
+async function totals() {
+    const list = await screen.findByRole("list", { name: "Totals" });
+    return within(list)
+        .getAllByRole("listitem")
+        .map((item) => item.textContent);
+}
+
 it("asks for a login, then shows the panel", async () => {
     const user = userEvent.setup();
     const fetch = fakeApi({
@@ -68,7 +76,7 @@ it("asks for a login, then shows the panel", async () => {
     await user.type(screen.getByLabelText("Password"), "correct horse battery");
     await user.click(screen.getByRole("button", { name: "Log in" }));
 
-    expect(await screen.findByText("2 links, 2 clicks")).toBeInTheDocument();
+    expect(await totals()).toEqual(["2 links", "2 clicks"]);
     expect(screen.getByText("alice")).toBeInTheDocument();
     expect(screen.getAllByRole("row")).toHaveLength(3); // the header and two links
     expect(fetch).toHaveBeenCalledWith(
@@ -112,7 +120,7 @@ it("searches, and deletes a link once confirmed", async () => {
 
     expect(confirm).toHaveBeenCalled();
     expect(await screen.findByText('No link matches "go.dev".')).toBeInTheDocument();
-    expect(screen.getByText("1 link, 0 clicks")).toBeInTheDocument();
+    expect(await totals()).toEqual(["1 link", "0 clicks"]);
 });
 
 it("goes back to the login form when the login expires", async () => {

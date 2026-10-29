@@ -30,7 +30,7 @@ export default function App() {
         <main>
             <h1>fullmono</h1>
             <p className="lead">Paste a long URL, get a short one.</p>
-            <form onSubmit={shorten}>
+            <form className="inline" onSubmit={shorten}>
                 <input
                     type="url"
                     required
@@ -39,12 +39,12 @@ export default function App() {
                     onChange={(event) => setUrl(event.target.value)}
                     aria-label="URL to shorten"
                 />
-                <button type="submit" disabled={saving}>
+                <button type="submit" className="primary" disabled={saving}>
                     Shorten
                 </button>
             </form>
             {error && <p className="error">{error}</p>}
-            <ul>
+            <ul className="links card">
                 {links.map((link) => (
                     <li key={link.code}>
                         <a href={shortUrl(link)}>{shortUrl(link)}</a>
