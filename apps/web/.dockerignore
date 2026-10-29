@@ -1,0 +1,7 @@
+# The image installs its own dependencies: a host's node_modules may hold
+# binaries for another OS, and copying it is slow.
+node_modules/
+dist/
+Dockerfile
+.dockerignore
+justfile

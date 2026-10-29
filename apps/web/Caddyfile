@@ -1,0 +1,32 @@
+# The site's one front door: the web app's files, and the api behind them.
+#
+# SITE_ADDRESS is :80 locally (plain HTTP). In production it's the domain,
+# say links.example.com, and Caddy then gets and renews its HTTPS certificate
+# by itself and redirects HTTP to HTTPS.
+{$SITE_ADDRESS::80} {
+	encode zstd gzip
+
+	@api path /api/* /r/*
+	handle @api {
+		reverse_proxy {$API_UPSTREAM:api:8080}
+	}
+
+	handle {
+		root * /srv
+		# A client-side route has no file: serve the app, and let it route.
+		try_files {path} /index.html
+		file_server
+	}
+
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+
+	# Vite puts a content hash in these names, so they can be cached forever.
+	@assets path /assets/*
+	header @assets Cache-Control "public, max-age=31536000, immutable"
+
+	log
+}

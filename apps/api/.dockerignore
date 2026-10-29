@@ -1,0 +1,9 @@
+# Kept out of the build context: faster uploads to the builder, and a
+# change to these never invalidates the `COPY . .` layer.
+bin/
+*.test
+*.out
+Dockerfile
+.dockerignore
+.golangci.yml
+justfile
