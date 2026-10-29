@@ -1,0 +1,63 @@
+# The whole stack on one machine: `just up`, then http://localhost:8000.
+# Compose reads .env (from .env.example) for the ${…} values.
+name: fullmono
+
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - db-data:/var/lib/postgresql
+    # On localhost only, for `just dev`'s api. DB_PORT moves it off a 5432 already taken.
+    ports:
+      - 127.0.0.1:${DB_PORT:-5432}:5432
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  # One-shot: applies the migrations, exits 0, and only then does the api start.
+  migrate:
+    image: fullmono-api
+    build: apps/api
+    command: [migrate]
+    environment:
+      DATABASE_URL: &database-url postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    image: fullmono-api
+    build: apps/api
+    environment:
+      DATABASE_URL: *database-url
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  web:
+    image: fullmono-web
+    build: apps/web
+    ports:
+      - ${WEB_PORT:-8000}:80
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # Optional: a log viewer for every container, at http://localhost:9999.
+  # Profiles keep it out of `just up`; `just logs` starts it.
+  dozzle:
+    image: amir20/dozzle:v11
+    profiles: [tools]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - 127.0.0.1:9999:8080
+
+volumes:
+  db-data:
