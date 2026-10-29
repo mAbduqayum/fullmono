@@ -56,9 +56,10 @@ psql:
 seed:
     ./scripts/seed.sh
 
-# The unit tests: fast, no Docker, run before every push
+# The unit tests, both apps: fast, no Docker, run before every push
 test:
     just api test
+    just web test
 
 # The api's integration tests, against Postgres in Docker
 test-integration: db

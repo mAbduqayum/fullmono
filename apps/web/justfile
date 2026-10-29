@@ -9,6 +9,10 @@ setup:
 dev:
     bun run dev
 
+# The unit and component tests, in jsdom
+test:
+    bun run test
+
 # Lint, then check formatting
 lint:
     bun run lint
