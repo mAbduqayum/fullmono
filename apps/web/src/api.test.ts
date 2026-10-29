@@ -34,6 +34,15 @@ describe("createLink", () => {
         );
     });
 
+    it("says the status too, so a caller can tell a 401", async () => {
+        fakeFetch(401, { error: "log in first" });
+
+        await expect(createLink("https://go.dev")).rejects.toMatchObject({
+            message: "log in first",
+            status: 401,
+        });
+    });
+
     it("throws the status when the answer isn't JSON", async () => {
         fakeFetch(502);
 

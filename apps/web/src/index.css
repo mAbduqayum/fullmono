@@ -61,3 +61,63 @@ li {
     align-self: center;
     color: GrayText;
 }
+
+/* The admin panel, at /admin */
+
+main.admin {
+    max-width: 60rem;
+}
+
+header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 1rem;
+    align-items: baseline;
+    justify-content: space-between;
+}
+
+form.login {
+    flex-direction: column;
+    max-width: 20rem;
+}
+
+label {
+    display: grid;
+    gap: 0.25rem;
+}
+
+.totals {
+    font-size: 1.25rem;
+}
+
+/* Wider than a phone: it scrolls sideways, not the page. */
+.table {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    margin-top: 1rem;
+    border-collapse: collapse;
+}
+
+th,
+td {
+    padding: 0.5rem;
+    border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+    text-align: left;
+    white-space: nowrap;
+}
+
+td.url {
+    max-width: 24rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pager {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 1rem;
+}
