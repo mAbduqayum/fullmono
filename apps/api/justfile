@@ -1,0 +1,28 @@
+# The api's recipes: `just api <recipe>` from the root, or `just <recipe>` here.
+# They run in apps/api.
+
+golangci_lint := "golangci/golangci-lint:v2.14.0-alpine"
+
+# Download the Go modules
+setup:
+    go mod download
+
+# Run the api on the host, against the database `just db` started
+dev:
+    go run ./cmd/api
+
+# Run the tests with the race detector
+test:
+    go test -race ./...
+
+# Lint in Docker, so nobody has to install golangci-lint
+lint:
+    docker run --rm -v "$PWD":/app -w /app {{ golangci_lint }} golangci-lint run
+
+# Format the Go files
+fmt:
+    gofmt -w .
+
+# Build the binary to bin/api
+build:
+    go build -o bin/api ./cmd/api

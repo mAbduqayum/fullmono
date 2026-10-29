@@ -1,0 +1,23 @@
+# The web app's recipes: `just web <recipe>` from the root, or `just <recipe>` here.
+# They run in apps/web.
+
+# Install the packages
+setup:
+    bun install
+
+# Vite's dev server on :5173, sending /api and /r to the api on :8080
+dev:
+    bun run dev
+
+# Lint, then check formatting
+lint:
+    bun run lint
+    bun run format:check
+
+# Format the code
+fmt:
+    bun run format
+
+# Type-check, then build to dist/
+build:
+    bun run build
