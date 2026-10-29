@@ -11,7 +11,11 @@ import (
 	"time"
 )
 
-// memoryStore is a Store in a map, so the handler's tests need no database.
+// Unit tests: the handler alone, through httptest, with no network or database.
+// They run in milliseconds, so there can be many, and every commit runs them.
+
+// memoryStore is a fake Store in a map, so the handler's tests need no database.
+// PostgresStore has tests of its own, against a real one (store_test.go).
 type memoryStore struct {
 	mu    sync.Mutex
 	links map[string]*Link
@@ -90,16 +94,11 @@ func TestCreateThenRedirect(t *testing.T) {
 	}
 }
 
-func TestCreateRejectsBadURLs(t *testing.T) {
+// Which URLs are bad is TestCheckURL's job: this checks the handler answers 400
+// for a body it can't read and for a URL checkURL rejects.
+func TestCreateRejectsBadInput(t *testing.T) {
 	h := NewHandler(newMemoryStore())
-	for _, body := range []string{
-		`not json`,
-		`{"url": ""}`,
-		`{"url": "go.dev"}`,
-		`{"url": "javascript:alert(1)"}`,
-		`{"url": "ftp://example.com/file"}`,
-		`{"url": "https://` + strings.Repeat("a", maxURLLength) + `.com"}`,
-	} {
+	for _, body := range []string{`not json`, `{"url": "go.dev"}`} {
 		if rec := serve(t, h, http.MethodPost, "/api/links", body); rec.Code != http.StatusBadRequest {
 			t.Errorf("%.40s: status %d, want 400", body, rec.Code)
 		}
