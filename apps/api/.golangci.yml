@@ -1,0 +1,16 @@
+version: "2"
+
+linters:
+  # errcheck, govet, ineffassign, staticcheck, unused
+  default: standard
+  enable:
+    - bodyclose # an HTTP response body left open leaks its connection
+    - errorlint # wrapped errors compared with == instead of errors.Is
+    - noctx # an HTTP request without a context can hang forever
+    - misspell
+    - unconvert
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
