@@ -11,7 +11,8 @@ front, git hooks, CI/CD on GitHub Actions and Dependabot.
 - **web**: React and Vite on bun, served by Caddy, which also routes `/api` and
   `/r` to the api. The admin panel is at `/admin`.
 
-How the parts fit together: [docs/architecture.md](docs/architecture.md).
+How the parts fit together: [docs/architecture.md](docs/architecture.md). How to
+change them: [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md).
 
 ## Quick start
 
@@ -41,7 +42,7 @@ apps/
   web/            React + Vite, and the Caddyfile it's served with
 e2e/              Playwright tests of the whole stack, run in Docker
 deploy/           compose.yaml for the server: the released images, HTTPS
-docs/             how the parts fit together
+docs/             how the parts fit together, and how to contribute
 scripts/          small helpers the recipes call
 .github/          CI, release and Dependabot
 compose.yaml      the local stack: db, migrate, api, web, and dozzle and e2e on demand
