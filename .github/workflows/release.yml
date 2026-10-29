@@ -1,0 +1,85 @@
+# Every push to main: check it (ci.yml), build both images and push them to
+# GitHub's container registry, then deploy them to the server.
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# One release at a time, in push order: a newer one waits instead of racing.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  images:
+    needs: ci
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        app: [api, web]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v6
+        with:
+          # Registry names are lowercase, unlike the owner's GitHub name.
+          images: ghcr.io/mabduqayum/fullmono-${{ matrix.app }}
+          # The commit's full sha, which deploy pins, and latest.
+          tags: |
+            type=sha,format=long,prefix=
+            type=raw,value=latest
+      - uses: docker/build-push-action@v7
+        with:
+          context: apps/${{ matrix.app }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Layers from the last run: an unchanged app rebuilds in seconds.
+          cache-from: type=gha,scope=${{ matrix.app }}
+          cache-to: type=gha,scope=${{ matrix.app }},mode=max
+
+  # Runs once the repository has a server: set the DEPLOY_HOST variable
+  # (user@host) and the DEPLOY_SSH_KEY and DEPLOY_KNOWN_HOSTS secrets.
+  deploy:
+    needs: images
+    if: vars.DEPLOY_HOST != ''
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      HOST: ${{ vars.DEPLOY_HOST }}
+      # Secrets reach the scripts as variables, never pasted into their text.
+      SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+      KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Trust the server and load the key
+        run: |
+          mkdir -p ~/.ssh
+          echo "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          eval "$(ssh-agent -s)"
+          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> "$GITHUB_ENV"
+          ssh-add - <<< "$SSH_KEY"
+      - name: Copy the compose file
+        run: scp deploy/compose.yaml "$HOST:fullmono/compose.yaml"
+      - name: Pull the new images and restart
+        run: |
+          # The sha expands here, on the runner, on purpose: the server has no $GITHUB_SHA.
+          # shellcheck disable=SC2029
+          ssh "$HOST" "cd fullmono && export TAG=$GITHUB_SHA && docker compose pull && docker compose up --detach --wait"

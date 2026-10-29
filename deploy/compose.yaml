@@ -1,0 +1,62 @@
+# Production, on the server: the images CI pushed, never a build.
+# The release workflow copies this file to the server and runs
+#   TAG=<commit sha> docker compose pull && docker compose up --detach --wait
+# next to a .env holding POSTGRES_* and SITE_ADDRESS (the domain).
+name: fullmono
+
+x-api: &api
+  image: ghcr.io/mabduqayum/fullmono-api:${TAG:-latest}
+  environment:
+    DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable
+
+services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - db-data:/var/lib/postgresql
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  migrate:
+    <<: *api
+    command: [migrate]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    <<: *api
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  web:
+    image: ghcr.io/mabduqayum/fullmono-web:${TAG:-latest}
+    restart: unless-stopped
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS}
+    ports:
+      - 80:80
+      - 443:443
+      - 443:443/udp # HTTP/3
+    volumes:
+      # Caddy's certificates: lose them and it asks Let's Encrypt again on every restart.
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  db-data:
+  caddy-data:
+  caddy-config:
