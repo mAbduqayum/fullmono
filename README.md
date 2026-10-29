@@ -31,19 +31,35 @@ To work on the code with reload, `just dev` runs Postgres in Docker and the api
 apps/
   api/            Go: cmd/api (the binary), internal/links, migrations/
   web/            React + Vite, and the Caddyfile it's served with
+e2e/              Playwright tests of the whole stack, run in Docker
 deploy/           compose.yaml for the server: the released images, HTTPS
 scripts/          small helpers the recipes call
 .github/          CI, release and Dependabot
-compose.yaml      the local stack: db, migrate, api, web, dozzle
-justfile          every command, with each app's own in apps/*/justfile
-lefthook.yml      git hooks: format and lint on commit, tests on push
+compose.yaml      the local stack: db, migrate, api, web, and dozzle and e2e on demand
+justfile          every command, with each folder's own in its justfile
+lefthook.yml      git hooks: format and lint on commit, unit tests on push
 ```
+
+## Tests
+
+Three kinds, from many fast ones to a few slow ones that cover the most:
+
+| Kind | Where | What it checks | Run it |
+|---|---|---|---|
+| Unit | `apps/api/**/*_test.go` (fake store), `apps/web/src/*.test.ts(x)` (Vitest, jsdom, fake `fetch`) | One piece alone: the handler, URL checking, the api client, the page's behaviour | `just test`, and before every push |
+| Integration | `apps/api/internal/links/store_test.go` | The SQL, the migrations and the unique index, against a real Postgres (each test on a fresh database) | `just test-integration` |
+| End-to-end | `e2e/tests/*.spec.ts` (Playwright) | A browser using the whole stack through Caddy: shorten, list, redirect, count | `just test-e2e`, then `just e2e report` |
+
+The integration tests skip unless `TEST_DATABASE_URL` is set, so `go test`
+alone stays fast. The end-to-end tests run in Playwright's Docker image, so no
+browser is installed on your machine (or in CI).
 
 ## CI/CD
 
-- **CI** (`ci.yml`) runs on every pull request, checking only the app that
-  changed: golangci-lint, `go test -race` and a build for the api; formatting,
-  oxlint and a type-checked build for the web app. `just ci` runs the same checks
+- **CI** (`ci.yml`) runs on every pull request, checking only what changed:
+  golangci-lint, the unit and integration tests (Postgres as a job service) and
+  a build for the api; formatting, oxlint, the tests and a type-checked build for
+  the web app; and, beside them, `just test-e2e`. `just ci` runs the same checks
   locally.
 - **Release** (`release.yml`) runs on every push to `main`: CI again, then both
   images pushed to `ghcr.io/mabduqayum/fullmono-{api,web}`, tagged with the
