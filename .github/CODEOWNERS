@@ -1,0 +1,4 @@
+# Who reviews what: a pull request that changes a matching path asks its
+# owners for a review. The last line that matches wins, so the catch-all
+# comes first and narrower paths go under it.
+* @mAbduqayum

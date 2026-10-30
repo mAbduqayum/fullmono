@@ -47,7 +47,7 @@ e2e/              Playwright tests of the whole stack, run in Docker
 deploy/           compose.yaml for the server: the released images, HTTPS
 docs/             how the parts fit together, how to contribute, and gh
 scripts/          small helpers the recipes call
-.github/          CI, release and Dependabot
+.github/          CI, release, Dependabot, issue and pull request templates, code owners
 compose.yaml      the local stack: db, migrate, api, web, and dozzle and e2e on demand
 mise.toml         the tools the recipes run, and their versions
 justfile          every command, with each folder's own in its justfile
