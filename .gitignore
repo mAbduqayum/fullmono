@@ -1,7 +1,9 @@
 # Secrets and machine-local config: .env.example is the committed template,
-# and mise.local.toml overrides mise.toml's versions on your machine alone.
+# mise.local.toml overrides mise.toml's versions on your machine alone, and
+# .claude/settings.local.json adds your own Claude Code settings to the team's.
 .env
 mise.local.toml
+.claude/settings.local.json
 
 # Dependencies and build output, recreated by `just setup` and the builds.
 node_modules/
