@@ -56,12 +56,11 @@ docs: explain the deploy job
 
 ## Pull requests
 
+A new pull request's text starts as the
+[template](../.github/pull_request_template.md): what it changes and why, how
+it was tested, and a checklist to tick before asking for a review.
 [CI](../.github/workflows/ci.yml) checks every pull request, and only the apps
-it changes. Before asking for a review:
-
-- [ ] `just ci` passes on your machine
-- [ ] new behaviour has a test
-- [ ] the README or these docs still say what's true
+it changes.
 
 A merge into `main` releases: [release.yml](../.github/workflows/release.yml)
 runs CI again, pushes the images, then deploys them.

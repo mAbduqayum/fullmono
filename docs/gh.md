@@ -34,7 +34,7 @@ A pull request whose text says `Closes #12` closes issue 12 when it's merged.
 ## Pull requests
 
 ```sh
-gh pr create --fill   # from your pushed branch, its commits as the text
+gh pr create          # a title, then the template to fill in
 gh pr checks --watch  # follow its CI to the end
 gh pr view --web      # open it on github.com
 ```
