@@ -101,3 +101,8 @@ there, in `~/fullmono`:
 ```sh
 read -rsp 'Password: ' p && echo && printf '%s\n' "$p" | docker compose run --rm -T api set-admin alice
 ```
+
+## License
+
+[MIT](LICENSE): use, change and share the code, as long as the copyright notice
+goes with it.
