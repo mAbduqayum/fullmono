@@ -24,15 +24,18 @@ jobs:
           filters: |
             api:
               - apps/api/**
+              - mise.toml
               - .github/workflows/ci.yml
             web:
               - apps/web/**
+              - mise.toml
               - .github/workflows/ci.yml
             e2e:
               - apps/**
               - e2e/**
               - compose.yaml
               - justfile
+              - mise.toml
               - .github/workflows/ci.yml
 
   api:
@@ -60,16 +63,24 @@ jobs:
         working-directory: apps/api
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      # mise.toml's versions, as on a laptop; only the tools this job runs.
+      - uses: jdx/mise-action@v5.1.2
         with:
-          go-version-file: apps/api/go.mod
-          cache-dependency-path: apps/api/go.sum
-      - uses: golangci/golangci-lint-action@v9
+          version: 2026.10.11
+          install_args: go just golangci-lint
+      # Go's downloaded modules and build cache, and golangci-lint's results:
+      # what go.sum hasn't changed is checked again in seconds.
+      - uses: actions/cache@v6
         with:
-          version: v2.14.0
-          working-directory: apps/api
-      - run: go test -race ./...
-      - run: go build ./...
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+            ~/.cache/golangci-lint
+          key: go-${{ runner.os }}-${{ hashFiles('apps/api/go.sum') }}
+          restore-keys: go-${{ runner.os }}-
+      - run: just lint
+      - run: just test
+      - run: just build
 
   web:
     needs: changes
@@ -80,14 +91,14 @@ jobs:
         working-directory: apps/web
     steps:
       - uses: actions/checkout@v7
-      - uses: oven-sh/setup-bun@v2
+      - uses: jdx/mise-action@v5.1.2
         with:
-          bun-version-file: apps/web/package.json
+          version: 2026.10.11
+          install_args: bun just
       - run: bun install --frozen-lockfile
-      - run: bun run format:check
-      - run: bun run lint
-      - run: bun run test
-      - run: bun run build
+      - run: just lint
+      - run: just test
+      - run: just build
 
   # The whole stack in Docker and a browser against it, through the same recipe
   # as on a laptop. Independent of the jobs above, so it runs beside them.
@@ -97,9 +108,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: extractions/setup-just@v4
+      - uses: jdx/mise-action@v5.1.2
         with:
-          just-version: 1.58.0
+          version: 2026.10.11
+          install_args: just
       - run: cp .env.example .env
       - run: just test-e2e
       - if: failure()
