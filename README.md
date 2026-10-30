@@ -1,8 +1,8 @@
 # fullmono
 
 A URL shortener, kept small on purpose: it's here to show the tooling around
-a fullstack monorepo — one `justfile`, Docker images and compose, Caddy in
-front, git hooks, CI/CD on GitHub Actions and Dependabot.
+a fullstack monorepo — mise for the tools, one `justfile`, Docker images and
+compose, Caddy in front, git hooks, CI/CD on GitHub Actions and Dependabot.
 
 - **api**: Go, `net/http` and Postgres (pgx). `POST /api/links` shortens a URL,
   `GET /api/links` lists them, `GET /r/{code}` redirects and counts the click.
@@ -16,9 +16,12 @@ change them: [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md).
 
 ## Quick start
 
-You need `docker`, `just`, `go`, `bun` and `lefthook`.
+You need `docker` and [`mise`](https://mise.jdx.dev), which installs the rest at
+the versions [mise.toml](mise.toml) pins: `go`, `bun`, `just`, `lefthook` and
+`golangci-lint`.
 
 ```sh
+mise install      # the tools
 just setup        # .env from .env.example, dependencies, git hooks
 just up           # build and start everything: http://localhost:8000
 just seed         # add a few links
@@ -46,6 +49,7 @@ docs/             how the parts fit together, and how to contribute
 scripts/          small helpers the recipes call
 .github/          CI, release and Dependabot
 compose.yaml      the local stack: db, migrate, api, web, and dozzle and e2e on demand
+mise.toml         the tools the recipes run, and their versions
 justfile          every command, with each folder's own in its justfile
 lefthook.yml      git hooks: format and lint on commit, unit tests on push
 ```

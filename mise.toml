@@ -1,0 +1,12 @@
+# The tools the recipes, the git hooks and CI run, each at one version for
+# everyone: `mise install` installs them, and with mise activated in your shell
+# they're on PATH inside this folder. Docker is the one it can't install.
+#
+# Dependabot doesn't read this file: `mise outdated` lists newer versions.
+# bun's must stay the packageManager in package.json and the Dockerfiles' tag.
+[tools]
+go = "1.27.2"
+bun = "1.4.3"
+just = "1.58.0"
+lefthook = "2.2.2"
+golangci-lint = "2.14.0"

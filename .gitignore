@@ -1,5 +1,7 @@
-# Secrets and machine-local config: .env.example is the committed template.
+# Secrets and machine-local config: .env.example is the committed template,
+# and mise.local.toml overrides mise.toml's versions on your machine alone.
 .env
+mise.local.toml
 
 # Dependencies and build output, recreated by `just setup` and the builds.
 node_modules/
