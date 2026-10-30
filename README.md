@@ -45,7 +45,7 @@ apps/
   web/            React + Vite, and the Caddyfile it's served with
 e2e/              Playwright tests of the whole stack, run in Docker
 deploy/           compose.yaml for the server: the released images, HTTPS
-docs/             how the parts fit together, and how to contribute
+docs/             how the parts fit together, how to contribute, and gh
 scripts/          small helpers the recipes call
 .github/          CI, release and Dependabot
 compose.yaml      the local stack: db, migrate, api, web, and dozzle and e2e on demand
