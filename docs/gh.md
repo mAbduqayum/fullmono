@@ -8,6 +8,25 @@ like git, so mise.toml doesn't pin it. Install it, then log in once:
 gh auth login
 ```
 
+## Clone
+
+```sh
+gh repo clone mAbduqayum/fullmono         # owner/name is enough
+gh repo fork mAbduqayum/fullmono --clone  # a copy you can push to
+```
+
+Then the README's [quick start](../README.md#quick-start) takes over.
+
+## Issues
+
+```sh
+gh issue list     # the open ones
+gh issue view 12  # issue 12; --comments adds its discussion
+gh issue create   # asks for a title and the text
+```
+
+A pull request whose text says `Closes #12` closes issue 12 when it's merged.
+
 ## Pull requests
 
 ```sh
