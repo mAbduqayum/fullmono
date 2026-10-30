@@ -10,10 +10,10 @@ pre-commit:
       run: gofmt -w {staged_files}
       stage_fixed: true
 
-    - name: api vet
+    - name: api lint
       root: apps/api/
       glob: "*.go"
-      run: go vet ./...
+      run: golangci-lint run
 
     - name: web format
       root: apps/web/
