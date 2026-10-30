@@ -65,3 +65,14 @@ it changes. Before asking for a review:
 
 A merge into `main` releases: [release.yml](../.github/workflows/release.yml)
 runs CI again, pushes the images, then deploys them.
+
+## From the terminal
+
+[gh](https://cli.github.com), GitHub's CLI, does the GitHub side of these steps
+without the browser. Log in once with `gh auth login`, then:
+
+```sh
+gh pr create --fill   # a pull request from your branch, its commits as the text
+gh pr checks --watch  # follow its CI to the end
+gh run watch          # follow the release after the merge
+```
