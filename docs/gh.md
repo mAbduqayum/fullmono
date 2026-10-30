@@ -20,10 +20,14 @@ Then the README's [quick start](../README.md#quick-start) takes over.
 ## Issues
 
 ```sh
-gh issue list     # the open ones
-gh issue view 12  # issue 12; --comments adds its discussion
-gh issue create   # asks for a title and the text
+gh issue list          # the open ones
+gh issue view 12       # issue 12; --comments adds its discussion
+gh issue create --web  # a new one, on github.com
 ```
+
+A new issue is a form, a [bug report](../.github/ISSUE_TEMPLATE/bug.yml) or a
+[feature request](../.github/ISSUE_TEMPLATE/feature.yml). gh can't show forms,
+so `--web` opens them in your browser.
 
 A pull request whose text says `Closes #12` closes issue 12 when it's merged.
 

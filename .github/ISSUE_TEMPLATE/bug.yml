@@ -1,0 +1,37 @@
+# An issue form: github.com shows it as a form at New issue, and the answers
+# become the issue's text under each label.
+name: Bug report
+description: Something works differently from how it should.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. just up
+        2. Shorten https://example.com
+        3. Open its short link
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The commit you ran (`git rev-parse --short HEAD`), or the image's tag.
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: The api's lines around the error, from `docker compose logs api`.
+      render: text
