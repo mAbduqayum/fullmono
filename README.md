@@ -54,11 +54,11 @@ lefthook.yml      git hooks: format and lint on commit, unit tests on push
 
 Three kinds, from many fast ones to a few slow ones that cover the most:
 
-| Kind | Where | What it checks | Run it |
-|---|---|---|---|
-| Unit | `apps/api/**/*_test.go` (fake store), `apps/web/src/*.test.ts(x)` (Vitest, jsdom, fake `fetch`) | One piece alone: the handler, URL checking, the api client, the page's behaviour | `just test`, and before every push |
-| Integration | `apps/api/internal/links/store_test.go` | The SQL, the migrations and the unique index, against a real Postgres (each test on a fresh database) | `just test-integration` |
-| End-to-end | `e2e/tests/*.spec.ts` (Playwright) | A browser using the whole stack through Caddy: shorten, list, redirect, count | `just test-e2e`, then `just e2e report` |
+| Kind        | Where                                                                                           | What it checks                                                                                        | Run it                                  |
+| ----------- | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| Unit        | `apps/api/**/*_test.go` (fake store), `apps/web/src/*.test.ts(x)` (Vitest, jsdom, fake `fetch`) | One piece alone: the handler, URL checking, the api client, the page's behaviour                      | `just test`, and before every push      |
+| Integration | `apps/api/internal/links/store_test.go`                                                         | The SQL, the migrations and the unique index, against a real Postgres (each test on a fresh database) | `just test-integration`                 |
+| End-to-end  | `e2e/tests/*.spec.ts` (Playwright)                                                              | A browser using the whole stack through Caddy: shorten, list, redirect, count                         | `just test-e2e`, then `just e2e report` |
 
 The integration tests skip unless `TEST_DATABASE_URL` is set, so `go test`
 alone stays fast. The end-to-end tests run in Playwright's Docker image, so no

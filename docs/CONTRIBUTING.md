@@ -8,15 +8,15 @@ fit.
 
 1. Branch off `main`:
 
-   ```sh
-   git switch main && git pull
-   git switch -c fix/count-clicks
-   ```
+    ```sh
+    git switch main && git pull
+    git switch -c fix/count-clicks
+    ```
 
 2. Run the stack with reload while you work: `just dev`.
 3. Change the tests beside the code you touch:
-   - `just test` runs the unit tests, in seconds;
-   - `just test-integration` runs the ones against Postgres.
+    - `just test` runs the unit tests, in seconds;
+    - `just test-integration` runs the ones against Postgres.
 4. Commit, push, and open a pull request.
 
 A schema change is a new migration in `apps/api/migrations/`, numbered after
@@ -45,10 +45,10 @@ docs: explain the deploy job
 
 `just setup` installs them ([lefthook.yml](../lefthook.yml)):
 
-| When | What runs |
-|---|---|
+| When         | What runs                                                  |
+| ------------ | ---------------------------------------------------------- |
 | `git commit` | the staged files formatted and linted; the message checked |
-| `git push` | the unit tests |
+| `git push`   | the unit tests                                             |
 
 > A failing hook stops the commit or the push. Fix what it reports instead of
 > skipping it with `--no-verify`: CI runs the same lint and tests, so skipping
