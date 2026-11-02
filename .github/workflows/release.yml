@@ -17,7 +17,9 @@ permissions:
 
 jobs:
   ci:
-    uses: ./.github/workflows/ci.yml
+    # zizmor would have `$/` here, but a reusable workflow's `./` already runs
+    # at this commit, and actionlint doesn't know `$/` yet.
+    uses: ./.github/workflows/ci.yml # zizmor: ignore[self-repository]
 
   images:
     needs: ci
@@ -30,6 +32,10 @@ jobs:
         app: [api, web]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # No job pushes with git, so the token is left out of .git/config, where a
+          # later step, or an artifact that uploads the folder, could read it.
+          persist-credentials: false
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
@@ -69,6 +75,8 @@ jobs:
       KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Trust the server and load the key
         run: |
           mkdir -p ~/.ssh

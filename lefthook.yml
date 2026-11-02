@@ -37,6 +37,13 @@ pre-commit:
       glob: "*.ts"
       run: bunx oxlint {staged_files}
 
+    # Offline: zizmor's audits that ask GitHub's API run in CI.
+    - name: workflows lint
+      glob:
+        - ".github/*.{yml,yaml}"
+        - ".github/**/*.{yml,yaml}"
+      run: actionlint && zizmor --offline .github
+
 commit-msg:
   jobs:
     - name: conventional commit

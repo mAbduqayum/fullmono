@@ -18,8 +18,8 @@ change them: [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md).
 ## Quick start
 
 You need `docker` and [`mise`](https://mise.jdx.dev), which installs the rest at
-the versions [mise.toml](mise.toml) pins: `go`, `bun`, `just`, `lefthook` and
-`golangci-lint`.
+the versions [mise.toml](mise.toml) pins: `go`, `bun`, `just`, `lefthook`,
+`golangci-lint`, `actionlint` and `zizmor`.
 
 ```sh
 mise install      # the tools
@@ -76,9 +76,11 @@ image, so no browser is installed on your machine (or in CI).
   golangci-lint, the unit and integration tests (Postgres as a job service), a
   build and govulncheck for the api; formatting, oxlint, the tests and a
   type-checked build for the web app; for both, that the code generated from
-  openapi.yaml is up to date; and, beside them, `just test-e2e`. Each job
-  installs its tools from mise.toml and runs the same recipes you do, and
-  `just ci` runs all the checks locally.
+  openapi.yaml is up to date; beside them, `just test-e2e`; and, when they
+  change, actionlint and zizmor on the workflows. Each job installs its tools
+  from mise.toml and runs the same recipes you do, and `just ci` runs all the
+  checks locally. Every action is pinned to a commit's hash, which Dependabot
+  keeps current.
 - **Release** (`release.yml`) runs on every push to `main`: CI again, then both
   images pushed to `ghcr.io/mabduqayum/fullmono-{api,web}`, tagged with the
   commit's sha and `latest`, then the deploy.

@@ -10,3 +10,7 @@ bun = "1.4.3"
 just = "1.58.0"
 lefthook = "2.2.2"
 golangci-lint = "2.14.0"
+# The GitHub Actions workflows: actionlint checks they are valid, zizmor that
+# they are safe (injection, token permissions, credentials left on disk).
+actionlint = "1.7.12"
+zizmor = "1.31.1"

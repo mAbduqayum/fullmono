@@ -100,6 +100,12 @@ lint:
     just api lint
     just web lint
     just e2e lint
+    just lint-workflows
+
+# Check the GitHub Actions workflows: valid (actionlint) and safe (zizmor)
+lint-workflows:
+    actionlint
+    zizmor .github
 
 # Format everything
 fmt:
