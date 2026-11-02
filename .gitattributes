@@ -1,0 +1,10 @@
+# How git treats files, by path.
+
+# Text files are committed, and checked out, with LF line endings on every OS:
+# a Windows clone doesn't turn the shell scripts or the sources into CRLF.
+* text=auto eol=lf
+
+# Code generated from apps/api/openapi.yaml (`just gen`): GitHub folds it in
+# pull requests' diffs and leaves it out of the repository's language stats.
+apps/api/internal/*/api.gen.go linguist-generated
+apps/web/src/api.gen.ts linguist-generated
