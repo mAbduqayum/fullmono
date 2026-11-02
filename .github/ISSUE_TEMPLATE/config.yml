@@ -1,3 +1,9 @@
 # New issue offers only the forms: no blank issue, so each one arrives with
 # what it needs.
 blank_issues_enabled: false
+
+# Links shown beside the forms.
+contact_links:
+  - name: Report a vulnerability
+    url: https://github.com/mAbduqayum/fullmono/security/advisories/new
+    about: Privately, never in a public issue. SECURITY.md says what to include.

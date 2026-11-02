@@ -13,7 +13,8 @@ git hooks, CI/CD on GitHub Actions and Dependabot.
   `/r` to the api. The admin panel is at `/admin`.
 
 How the parts fit together: [docs/architecture.md](docs/architecture.md). How to
-change them: [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md).
+change them: [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md). How to report a
+vulnerability, privately: [SECURITY.md](SECURITY.md).
 
 ## Quick start
 
