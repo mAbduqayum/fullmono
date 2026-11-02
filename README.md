@@ -1,8 +1,9 @@
 # fullmono
 
 A URL shortener, kept small on purpose: it's here to show the tooling around
-a fullstack monorepo — mise for the tools, one `justfile`, Docker images and
-compose, Caddy in front, git hooks, CI/CD on GitHub Actions and Dependabot.
+a fullstack monorepo — mise for the tools, one `justfile`, an OpenAPI contract
+both apps' code is generated from, Docker images and compose, Caddy in front,
+git hooks, CI/CD on GitHub Actions and Dependabot.
 
 - **api**: Go, `net/http` and Postgres (pgx). `POST /api/links` shortens a URL,
   `GET /api/links` lists them, `GET /r/{code}` redirects and counts the click.
@@ -41,7 +42,7 @@ To work on the code with reload, `just dev` runs Postgres in Docker and the api
 
 ```
 apps/
-  api/            Go: cmd/api (the binary), internal/links and auth, migrations/
+  api/            Go: openapi.yaml (the routes), cmd/api, internal/links and auth, migrations/
   web/            React + Vite, and the Caddyfile it's served with
 e2e/              Playwright tests of the whole stack, run in Docker
 deploy/           compose.yaml for the server: the released images, HTTPS
@@ -73,7 +74,8 @@ browser is installed on your machine (or in CI).
 - **CI** (`ci.yml`) runs on every pull request, checking only what changed:
   golangci-lint, the unit and integration tests (Postgres as a job service) and
   a build for the api; formatting, oxlint, the tests and a type-checked build for
-  the web app; and, beside them, `just test-e2e`. Each job installs its tools
+  the web app; for both, that the code generated from openapi.yaml is up to
+  date; and, beside them, `just test-e2e`. Each job installs its tools
   from mise.toml and runs the same recipes you do, and `just ci` runs all the
   checks locally.
 - **Release** (`release.yml`) runs on every push to `main`: CI again, then both

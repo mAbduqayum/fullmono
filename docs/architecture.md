@@ -54,6 +54,9 @@ sequenceDiagram
 
 ## The api's routes
 
+[openapi.yaml](../apps/api/openapi.yaml) is their contract: each route's
+parameters, body and answers, which this table sums up.
+
 | Method   | Path                      | For    | What it does                                                 |
 | -------- | ------------------------- | ------ | ------------------------------------------------------------ |
 | `GET`    | `/api/health`             | anyone | Answers 200 while the database does; the healthcheck asks it |
@@ -70,6 +73,27 @@ sequenceDiagram
 An admin's login is a JWT, signed with `JWT_SECRET`, in an _httpOnly_ cookie:
 the browser sends it with every `/api/admin` request, and the page's scripts
 can't read it.
+
+## The contract
+
+Both apps build on openapi.yaml, through code generated from it (`just gen`)
+and committed beside it:
+
+- **api**: each tag of the contract is a Go package, `internal/links` and
+  `internal/auth`, and gets an `api.gen.go`: a router, the models, and
+  `StrictServerInterface`, a typed method per route, which the package's
+  `handler.go` implements.
+- **web**: `src/api.gen.ts`, the types its client (openapi-fetch) checks every
+  call against: a path, parameter or body the api doesn't take fails the type
+  check.
+
+The api also checks each request against the contract before a handler runs
+([api.go](../apps/api/api.go)): a route it doesn't have answers 404, a missing
+or expired login 401, and a parameter or body that doesn't fit 400. So which
+routes need an admin is the contract's `security`, not code in a handler.
+
+A route's change starts in openapi.yaml; CI fails when the generated code
+doesn't match it.
 
 ## Data
 

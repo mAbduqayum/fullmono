@@ -13,6 +13,7 @@ the one it can't install. Run everything through `just`, from the root:
 - `just test-integration`: the api's tests against Postgres in Docker
 - `just test-e2e`: Playwright against the whole stack, in Docker
 - `just lint`, `just fmt`: every app
+- `just gen`: the code both apps generate from `apps/api/openapi.yaml`
 - `just ci`: everything CI checks
 
 One app alone: `just api <recipe>`, `just web <recipe>`, `just e2e <recipe>`.
@@ -21,8 +22,12 @@ One app alone: `just api <recipe>`, `just web <recipe>`, `just e2e <recipe>`.
 
 - Never read or print `.env`: it holds this machine's secrets. A new setting
   goes in `.env.example`, and in `deploy/compose.yaml` if the server needs it.
+- The api's routes are its contract, `apps/api/openapi.yaml`: change it first,
+  then `just gen`, then the handlers and the web calls the compiler points at.
+  Never edit a `*.gen.*` file: it's regenerated.
 - A change comes with its tests, beside the code: a handler's run on the fake
-  store (`handler_test.go`), SQL's against Postgres (`store_test.go`).
+  store (`handler_test.go`), what the contract refuses through the whole
+  handler (`apps/api/api_test.go`), SQL's against Postgres (`store_test.go`).
 - A schema change is a new numbered migration in `apps/api/migrations/`, with
   `schema.sql` updated to match.
 - A tool's version changes in `mise.toml`; bun's also in each `package.json`'s

@@ -19,6 +19,13 @@ fit, and [gh.md](gh.md) does the GitHub steps from the terminal.
     - `just test-integration` runs the ones against Postgres.
 4. Commit, push, and open a pull request.
 
+A route's change starts in its contract,
+[openapi.yaml](../apps/api/openapi.yaml). Edit it, run `just gen`, then fix
+what the compilers report: the api's handler that no longer implements the
+regenerated interface, and the web calls that no longer fit. Never edit the
+generated `api.gen.go` or `api.gen.ts`; CI fails when they don't match the
+contract.
+
 A schema change is a new migration in `apps/api/migrations/`, numbered after
 the last one. Update [schema.sql](../apps/api/migrations/schema.sql) by hand
 to match.
