@@ -28,8 +28,9 @@ One app alone: `just api <recipe>`, `just web <recipe>`, `just e2e <recipe>`.
 - A change comes with its tests, beside the code: a handler's run on the fake
   store (`handler_test.go`), what the contract refuses through the whole
   handler (`apps/api/api_test.go`), SQL's against Postgres (`store_test.go`).
-- A schema change is a new numbered migration in `apps/api/migrations/`, with
-  `schema.sql` updated to match: `schema_test.go` checks it does.
+- A schema change is a new numbered migration in `apps/api/migrations/`, by the
+  rules in its README, with `schema.sql` updated to match: `schema_test.go`
+  checks it does.
 - A tool's version changes in `mise.toml`; bun's also in each `package.json`'s
   `packageManager` and the Dockerfiles' `oven/bun` tag.
 - Commit messages are Conventional Commits, scoped `api`, `web` or `e2e`. The

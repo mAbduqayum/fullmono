@@ -27,8 +27,9 @@ generated `api.gen.go` or `api.gen.ts`; CI fails when they don't match the
 contract.
 
 A schema change is a new migration in `apps/api/migrations/`, numbered after
-the last one. Update [schema.sql](../apps/api/migrations/schema.sql) by hand
-to match; `just test-integration` checks it does.
+the last one; [its README](../apps/api/migrations/README.md) has the rules.
+Update [schema.sql](../apps/api/migrations/schema.sql) by hand to match;
+`just test-integration` checks it does.
 
 ## Commit messages
 
