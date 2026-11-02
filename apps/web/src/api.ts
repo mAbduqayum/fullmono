@@ -1,23 +1,24 @@
+import createClient from "openapi-fetch";
+import type { components, paths } from "./api.gen";
+
+// api.gen.ts is the api's contract, apps/api/openapi.yaml, as TypeScript types
+// (`just web gen`): a path, parameter or body the api doesn't take, or a field
+// its answers don't have, fails the type check rather than the request.
+
 /** A shortened URL, as the api returns it. */
-export interface Link {
-    code: string;
-    url: string;
-    clicks: number;
-    createdAt: string;
-}
+export type Link = components["schemas"]["Link"];
+
+/** The api's client: this page's origin, which Caddy (or Vite) sends on to the api. */
+export const api = createClient<paths>({
+    baseUrl: location.origin,
+    // fetch looked up on each call, not once here, so that tests can stub it.
+    fetch: (request) => fetch(request),
+});
 
 /** The newest links first. */
-export function listLinks(): Promise<Link[]> {
-    return request("/api/links");
-}
+export const listLinks = () => unwrap(api.GET("/api/links"));
 
-export function createLink(url: string): Promise<Link> {
-    return request("/api/links", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
-    });
-}
+export const createLink = (url: string) => unwrap(api.POST("/api/links", { body: { url } }));
 
 /** Where a link's code redirects from: this page's origin, which Caddy (or Vite) sends on to the api. */
 export const shortUrl = (link: Link) => `${location.origin}/r/${link.code}`;
@@ -32,10 +33,15 @@ export class ApiError extends Error {
     }
 }
 
-export async function request<T>(path: string, init?: RequestInit): Promise<T> {
-    const res = await fetch(path, init);
-    // A 204 has no body, and a proxy's error page isn't JSON: both read as null.
-    const body = await res.json().catch(() => null);
-    if (!res.ok) throw new ApiError(body?.error ?? `${res.status} ${res.statusText}`, res.status);
-    return body as T;
+/** A call's data, or an ApiError when the answer isn't a 2xx. */
+export async function unwrap<T>(
+    call: Promise<{ data?: T; error?: unknown; response: Response }>,
+): Promise<T> {
+    const { data, error, response } = await call;
+    if (!response.ok) {
+        // A proxy's error page isn't the api's JSON: its status says what went wrong.
+        const message = (error as { error?: string } | undefined)?.error;
+        throw new ApiError(message ?? `${response.status} ${response.statusText}`, response.status);
+    }
+    return data as T;
 }

@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
 import type { Link } from "./api";
 import App from "./App";
+import { sent } from "./test/sent";
 
 // Component tests: App rendered into jsdom and used the way a person would, by
 // its labels and text (Testing Library's queries), never its state or markup.
@@ -51,10 +52,10 @@ it("shortens a URL and puts it first", async () => {
     const first = (await screen.findAllByRole("listitem"))[0];
     expect(within(first).getByText("https://vite.dev")).toBeInTheDocument();
     expect(input).toHaveValue("");
-    expect(fetch).toHaveBeenLastCalledWith(
-        "/api/links",
-        expect.objectContaining({ method: "POST", body: '{"url":"https://vite.dev"}' }),
-    );
+    expect(await sent(fetch.mock.lastCall?.[0])).toMatchObject({
+        route: "POST /api/links",
+        body: { url: "https://vite.dev" },
+    });
 });
 
 it("shows why the api rejected a URL", async () => {

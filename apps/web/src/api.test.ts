@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createLink, shortUrl } from "./api";
+import { sent } from "./test/sent";
 
 // Unit tests for the api client: fetch is replaced by a fake that answers what
 // the test needs, so no server runs and nothing leaves the process.
@@ -19,11 +20,14 @@ describe("createLink", () => {
         const fetch = fakeFetch(201, link);
 
         await expect(createLink("https://go.dev")).resolves.toEqual(link);
-        expect(fetch).toHaveBeenCalledWith("/api/links", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ url: "https://go.dev" }),
+        const request = fetch.mock.calls[0]?.[0];
+        expect(await sent(request)).toEqual({
+            route: "POST /api/links",
+            query: "",
+            body: { url: "https://go.dev" },
         });
+        // The api turns away a body that doesn't say it's JSON.
+        expect((request as Request).headers.get("Content-Type")).toBe("application/json");
     });
 
     it("throws the api's error message", async () => {
