@@ -15,6 +15,8 @@ import (
 
 // Unit tests: the handler alone, through httptest, with no network or database.
 // They run in milliseconds, so there can be many, and every commit runs them.
+// What openapi.yaml turns away before a handler runs, a request without a
+// login or with a malformed parameter, is ../../api_test.go's to test.
 
 // memoryStore is a fake Store in a map, so the handler's tests need no database.
 // PostgresStore has tests of its own, against a real one (store_test.go).
@@ -114,16 +116,6 @@ func (s *memoryStore) Stats(_ context.Context, top int) (Stats, error) {
 	return stats, nil
 }
 
-// allow and deny stand in for auth.RequireAdmin: these tests are about the
-// links, and auth's own tests cover the login.
-func allow(next http.Handler) http.Handler { return next }
-
-func deny(http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusUnauthorized)
-	})
-}
-
 func serve(t *testing.T, h http.Handler, method, path, body string) *httptest.ResponseRecorder {
 	t.Helper()
 	rec := httptest.NewRecorder()
@@ -133,7 +125,7 @@ func serve(t *testing.T, h http.Handler, method, path, body string) *httptest.Re
 
 func TestCreateThenRedirect(t *testing.T) {
 	store := newMemoryStore()
-	h := NewHandler(store, allow)
+	h := NewHandler(store)
 
 	rec := serve(t, h, http.MethodPost, "/api/links", `{"url": "https://go.dev/doc/"}`)
 	if rec.Code != http.StatusCreated {
@@ -159,7 +151,7 @@ func TestCreateThenRedirect(t *testing.T) {
 // Which URLs are bad is TestCheckURL's job: this checks the handler answers 400
 // for a body it can't read and for a URL checkURL rejects.
 func TestCreateRejectsBadInput(t *testing.T) {
-	h := NewHandler(newMemoryStore(), allow)
+	h := NewHandler(newMemoryStore())
 	for _, body := range []string{`not json`, `{"url": "go.dev"}`} {
 		if rec := serve(t, h, http.MethodPost, "/api/links", body); rec.Code != http.StatusBadRequest {
 			t.Errorf("%.40s: status %d, want 400", body, rec.Code)
@@ -167,10 +159,12 @@ func TestCreateRejectsBadInput(t *testing.T) {
 	}
 }
 
+// The generated interface lets a test call an operation as a plain method:
+// a typed request in, a typed answer out, no HTTP in between.
 func TestCreateRetriesATakenCode(t *testing.T) {
 	store := newMemoryStore()
 	codes := []string{"taken00", "taken00", "fresh00"}
-	h := &handler{store: store, newCode: func() string {
+	s := &server{store: store, newCode: func() string {
 		code := codes[0]
 		codes = codes[1:]
 		return code
@@ -179,37 +173,21 @@ func TestCreateRetriesATakenCode(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/links", strings.NewReader(`{"url": "https://go.dev"}`))
-	h.create(rec, req)
-	if rec.Code != http.StatusCreated || !strings.Contains(rec.Body.String(), "fresh00") {
-		t.Fatalf("status %d, body %s", rec.Code, rec.Body)
+	res, err := s.CreateLink(t.Context(), CreateLinkRequestObject{Body: &CreateLinkJSONRequestBody{URL: "https://go.dev"}})
+	if link, ok := res.(CreateLink201JSONResponse); err != nil || !ok || link.Code != "fresh00" {
+		t.Fatalf("got %#v, %v; want the link fresh00", res, err)
 	}
 }
 
 func TestUnknownCodeIsNotFound(t *testing.T) {
-	if rec := serve(t, NewHandler(newMemoryStore(), allow), http.MethodGet, "/r/nope", ""); rec.Code != http.StatusNotFound {
+	if rec := serve(t, NewHandler(newMemoryStore()), http.MethodGet, "/r/nope", ""); rec.Code != http.StatusNotFound {
 		t.Errorf("status %d, want 404", rec.Code)
 	}
 }
 
 func TestHealth(t *testing.T) {
-	if rec := serve(t, NewHandler(newMemoryStore(), allow), http.MethodGet, "/api/health", ""); rec.Code != http.StatusOK {
+	if rec := serve(t, NewHandler(newMemoryStore()), http.MethodGet, "/api/health", ""); rec.Code != http.StatusOK {
 		t.Errorf("status %d, want 200", rec.Code)
-	}
-}
-
-func TestAdminRoutesNeedALogin(t *testing.T) {
-	h := NewHandler(newMemoryStore(), deny)
-	for _, route := range []string{"GET /api/admin/links", "DELETE /api/admin/links/abc1234", "GET /api/admin/stats"} {
-		method, path, _ := strings.Cut(route, " ")
-		if rec := serve(t, h, method, path, ""); rec.Code != http.StatusUnauthorized {
-			t.Errorf("%s: status %d, want 401", route, rec.Code)
-		}
-	}
-	// The visitors' routes stay open.
-	if rec := serve(t, h, http.MethodGet, "/api/links", ""); rec.Code != http.StatusOK {
-		t.Errorf("GET /api/links: status %d, want 200", rec.Code)
 	}
 }
 
@@ -220,7 +198,7 @@ func TestAdminSearchPagesAndFilters(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	h := NewHandler(store, allow)
+	h := NewHandler(store)
 	for query, want := range map[string]struct{ links, total int }{
 		"":                   {adminPageSize, 30},
 		"?page=2":            {30 - adminPageSize, 30},
@@ -229,17 +207,12 @@ func TestAdminSearchPagesAndFilters(t *testing.T) {
 		"?q=nothing+like+it": {0, 0},
 	} {
 		rec := serve(t, h, http.MethodGet, "/api/admin/links"+query, "")
-		var page searchPage
+		var page SearchPage
 		if err := json.NewDecoder(rec.Body).Decode(&page); err != nil {
 			t.Fatal(err)
 		}
 		if rec.Code != http.StatusOK || len(page.Links) != want.links || page.Total != want.total {
 			t.Errorf("%q: status %d, %d links of %d; want %d of %d", query, rec.Code, len(page.Links), page.Total, want.links, want.total)
-		}
-	}
-	for _, query := range []string{"?page=0", "?page=two"} {
-		if rec := serve(t, h, http.MethodGet, "/api/admin/links"+query, ""); rec.Code != http.StatusBadRequest {
-			t.Errorf("%q: status %d, want 400", query, rec.Code)
 		}
 	}
 }
@@ -249,7 +222,7 @@ func TestAdminDeletes(t *testing.T) {
 	if _, err := store.Create(t.Context(), "spam000", "https://example.com/spam"); err != nil {
 		t.Fatal(err)
 	}
-	h := NewHandler(store, allow)
+	h := NewHandler(store)
 	if rec := serve(t, h, http.MethodDelete, "/api/admin/links/spam000", ""); rec.Code != http.StatusNoContent {
 		t.Fatalf("delete: status %d, want 204", rec.Code)
 	}
@@ -273,7 +246,7 @@ func TestAdminStats(t *testing.T) {
 			}
 		}
 	}
-	rec := serve(t, NewHandler(store, allow), http.MethodGet, "/api/admin/stats", "")
+	rec := serve(t, NewHandler(store), http.MethodGet, "/api/admin/stats", "")
 	var stats Stats
 	if err := json.NewDecoder(rec.Body).Decode(&stats); err != nil {
 		t.Fatal(err)

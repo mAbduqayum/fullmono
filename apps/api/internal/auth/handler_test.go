@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -9,7 +10,9 @@ import (
 	"time"
 )
 
-// Unit tests: the login routes through httptest, with a fake Admins.
+// Unit tests: the login routes through httptest, with a fake Admins. That
+// the admin's operations refuse a request without a login is the contract's
+// doing, which ../../api_test.go tests.
 
 type fakeAdmins map[string][]byte
 
@@ -85,21 +88,37 @@ func TestLogInRejects(t *testing.T) {
 	}
 }
 
-func TestSessionNeedsAValidToken(t *testing.T) {
+// whoIs runs a request with the cookie through Identify, and says who the
+// handler then sees and what CheckLogin says of it.
+func whoIs(t *testing.T, tokens *Tokens, cookie *http.Cookie) (admin string, problem error) {
+	t.Helper()
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/admin/stats", nil)
+	if cookie != nil {
+		req.AddCookie(cookie)
+	}
+	Identify(tokens)(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		admin, problem = Admin(r.Context()), CheckLogin(r)
+	})).ServeHTTP(httptest.NewRecorder(), req)
+	return admin, problem
+}
+
+func TestOnlyAValidTokenLogsIn(t *testing.T) {
 	h, tokens := testHandler(t)
 	cookie := send(t, h, http.MethodPost, alicesLogIn, nil).Result().Cookies()[0]
-	withCookie := func(r *http.Request) { r.AddCookie(cookie) }
 
-	if rec := send(t, h, http.MethodGet, "", nil); rec.Code != http.StatusUnauthorized {
-		t.Errorf("no cookie: status %d, want 401", rec.Code)
+	if admin, err := whoIs(t, tokens, nil); admin != "" || !errors.Is(err, errNoLogin) {
+		t.Errorf("no cookie: admin %q, %v", admin, err)
 	}
-	if rec := send(t, h, http.MethodGet, "", withCookie); rec.Code != http.StatusOK ||
-		!strings.Contains(rec.Body.String(), `"username":"alice"`) {
-		t.Errorf("logged in: status %d, body %s", rec.Code, rec.Body)
+	if admin, err := whoIs(t, tokens, cookie); admin != "alice" || err != nil {
+		t.Errorf("logged in: admin %q, %v", admin, err)
+	}
+	rec := send(t, Identify(tokens)(h), http.MethodGet, "", func(r *http.Request) { r.AddCookie(cookie) })
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"username":"alice"`) {
+		t.Errorf("GET session: status %d, body %s", rec.Code, rec.Body)
 	}
 	tokens.now = func() time.Time { return time.Now().Add(tokenLifetime + time.Minute) }
-	if rec := send(t, h, http.MethodGet, "", withCookie); rec.Code != http.StatusUnauthorized {
-		t.Errorf("expired: status %d, want 401", rec.Code)
+	if admin, err := whoIs(t, tokens, cookie); admin != "" || !errors.Is(err, errLoginExpired) {
+		t.Errorf("expired: admin %q, %v", admin, err)
 	}
 }
 

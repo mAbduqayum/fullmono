@@ -1,5 +1,5 @@
-// Package httpx holds what every handler of the api shares: its JSON answers
-// and its request log.
+// Package httpx holds what every handler of the api shares: its JSON answers,
+// its failures and its request log.
 package httpx
 
 import (
@@ -19,6 +19,18 @@ func JSON(w http.ResponseWriter, status int, v any) {
 // Error answers {"error": message}, the shape of every failed request.
 func Error(w http.ResponseWriter, status int, message string) {
 	JSON(w, status, map[string]string{"error": message})
+}
+
+// BadRequest answers a request a generated router couldn't read.
+func BadRequest(w http.ResponseWriter, _ *http.Request, err error) {
+	Error(w, http.StatusBadRequest, err.Error())
+}
+
+// Fail logs what went wrong on the api's side, and answers without the
+// details, which are for whoever reads the logs, not for the visitor.
+func Fail(w http.ResponseWriter, r *http.Request, err error) {
+	slog.ErrorContext(r.Context(), "request failed", "path", r.URL.Path, "err", err)
+	Error(w, http.StatusInternalServerError, "something went wrong")
 }
 
 // LogRequests logs one JSON line per request, which `docker compose logs` and

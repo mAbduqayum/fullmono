@@ -1,0 +1,13 @@
+# oapi-codegen's settings for this package's part of the contract: the
+# operations ../../openapi.yaml tags links, as a net/http router, a typed
+# interface for the handlers to implement (strict-server) and its models.
+package: links
+output: api.gen.go
+generate:
+  std-http-server: true
+  strict-server: true
+  models: true
+output-options:
+  include-tags: [links]
+  # url -> URL, as Go names initialisms.
+  name-normalizer: ToCamelCaseWithInitialisms

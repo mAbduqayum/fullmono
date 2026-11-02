@@ -1,14 +1,15 @@
 package links
 
+//go:generate go tool oapi-codegen -config oapi-codegen.yaml ../../openapi.yaml
+
 import (
+	"context"
 	"crypto/rand"
-	"encoding/json"
 	"errors"
 	"log/slog"
 	"math/big"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 
 	"github.com/mAbduqayum/fullmono/apps/api/internal/auth"
@@ -22,154 +23,112 @@ const (
 	// createAttempts is how many random codes a create tries before giving up.
 	createAttempts = 3
 	maxURLLength   = 2048
-	maxBodyBytes   = 4 << 10
 	listLimit      = 50
 	adminPageSize  = 25
-	// maxAdminPage is far past any real list, and short of overflowing the offset.
-	maxAdminPage = 1 << 20
-	statsTop     = 5
+	statsTop       = 5
+	noSuchLink     = "no link has that code"
 )
 
-type handler struct {
+// server implements the operations openapi.yaml tags links, as the interface
+// generated from it (api.gen.go) declares them: a typed request in, a typed
+// answer out, and an error only for a failure, which answers 500.
+type server struct {
 	store   Store
 	newCode func() string
 }
 
-// NewHandler serves the JSON API under /api and the redirects under /r, and
-// the admin routes under /api/admin to the requests requireAdmin lets through.
-func NewHandler(store Store, requireAdmin func(http.Handler) http.Handler) http.Handler {
-	h := &handler{store: store, newCode: randomCode}
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /api/health", h.health)
-	mux.HandleFunc("GET /api/links", h.list)
-	mux.HandleFunc("POST /api/links", h.create)
-	mux.HandleFunc("GET /r/{code}", h.redirect)
+var _ StrictServerInterface = (*server)(nil)
 
-	admin := func(pattern string, handle http.HandlerFunc) {
-		mux.Handle(pattern, requireAdmin(handle))
-	}
-	admin("GET /api/admin/links", h.search)
-	admin("DELETE /api/admin/links/{code}", h.delete)
-	admin("GET /api/admin/stats", h.stats)
-	return mux
+// NewHandler serves the operations openapi.yaml tags links. It trusts the
+// requests to have been checked against the contract first (api.NewHandler
+// does): the admin's operations to come with a login, and the parameters and
+// bodies to have their shapes and limits.
+func NewHandler(store Store) http.Handler {
+	strict := NewStrictHandlerWithOptions(&server{store: store, newCode: randomCode}, nil, StrictHTTPServerOptions{
+		RequestErrorHandlerFunc:  httpx.BadRequest,
+		ResponseErrorHandlerFunc: httpx.Fail,
+	})
+	return HandlerWithOptions(strict, StdHTTPServerOptions{ErrorHandlerFunc: httpx.BadRequest})
 }
 
-func (h *handler) health(w http.ResponseWriter, r *http.Request) {
-	if err := h.store.Ping(r.Context()); err != nil {
-		httpx.Error(w, http.StatusServiceUnavailable, "database unreachable")
-		return
+func (s *server) GetHealth(ctx context.Context, _ GetHealthRequestObject) (GetHealthResponseObject, error) {
+	if err := s.store.Ping(ctx); err != nil {
+		return GetHealth503JSONResponse{Error: "database unreachable"}, nil
 	}
-	httpx.JSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	return GetHealth200JSONResponse{Status: "ok"}, nil
 }
 
-func (h *handler) list(w http.ResponseWriter, r *http.Request) {
-	links, err := h.store.List(r.Context(), listLimit)
+func (s *server) ListLinks(ctx context.Context, _ ListLinksRequestObject) (ListLinksResponseObject, error) {
+	links, err := s.store.List(ctx, listLimit)
 	if err != nil {
-		h.fail(w, r, err)
-		return
+		return nil, err
 	}
-	httpx.JSON(w, http.StatusOK, links)
+	return ListLinks200JSONResponse(links), nil
 }
 
-func (h *handler) create(w http.ResponseWriter, r *http.Request) {
-	var body struct {
-		URL string `json:"url"`
-	}
-	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxBodyBytes)).Decode(&body); err != nil {
-		httpx.Error(w, http.StatusBadRequest, "expected a JSON body like {\"url\": \"https://…\"}")
-		return
-	}
-	if problem := checkURL(body.URL); problem != "" {
-		httpx.Error(w, http.StatusBadRequest, problem)
-		return
+func (s *server) CreateLink(ctx context.Context, request CreateLinkRequestObject) (CreateLinkResponseObject, error) {
+	target := request.Body.URL
+	if problem := checkURL(target); problem != "" {
+		return CreateLink400JSONResponse{Error: problem}, nil
 	}
 	for range createAttempts {
-		link, err := h.store.Create(r.Context(), h.newCode(), body.URL)
+		link, err := s.store.Create(ctx, s.newCode(), target)
 		if errors.Is(err, ErrCodeTaken) {
 			continue
 		}
 		if err != nil {
-			h.fail(w, r, err)
-			return
+			return nil, err
 		}
-		httpx.JSON(w, http.StatusCreated, link)
-		return
+		return CreateLink201JSONResponse(link), nil
 	}
-	h.fail(w, r, ErrCodeTaken)
+	return nil, ErrCodeTaken
 }
 
-func (h *handler) redirect(w http.ResponseWriter, r *http.Request) {
-	target, err := h.store.Visit(r.Context(), r.PathValue("code"))
+func (s *server) FollowLink(ctx context.Context, request FollowLinkRequestObject) (FollowLinkResponseObject, error) {
+	target, err := s.store.Visit(ctx, request.Code)
 	if errors.Is(err, ErrNotFound) {
-		http.NotFound(w, r)
-		return
+		return FollowLink404TextResponse(noSuchLink + "\n"), nil
 	}
 	if err != nil {
-		h.fail(w, r, err)
-		return
+		return nil, err
 	}
-	// 302, not 301: browsers cache a permanent redirect and stop asking, so visits would go uncounted.
-	http.Redirect(w, r, target, http.StatusFound)
+	return FollowLink302Response{Headers: FollowLink302ResponseHeaders{Location: target}}, nil
 }
 
-// searchPage is one page of an admin search, with what paging through it needs.
-type searchPage struct {
-	Links    []Link `json:"links"`
-	Total    int    `json:"total"`
-	PageSize int    `json:"pageSize"`
-}
-
-func (h *handler) search(w http.ResponseWriter, r *http.Request) {
-	page := 1
-	if raw := r.URL.Query().Get("page"); raw != "" {
-		n, err := strconv.Atoi(raw)
-		if err != nil || n < 1 || n > maxAdminPage {
-			httpx.Error(w, http.StatusBadRequest, "page must be a whole number from 1")
-			return
-		}
-		page = n
+func (s *server) SearchLinks(ctx context.Context, request SearchLinksRequestObject) (SearchLinksResponseObject, error) {
+	page, query := 1, ""
+	if request.Params.Page != nil {
+		page = *request.Params.Page
 	}
-	query := strings.TrimSpace(r.URL.Query().Get("q"))
-	if len(query) > maxURLLength {
-		httpx.Error(w, http.StatusBadRequest, "the search is too long")
-		return
+	if request.Params.Q != nil {
+		query = strings.TrimSpace(*request.Params.Q)
 	}
-	links, total, err := h.store.Search(r.Context(), query, adminPageSize, (page-1)*adminPageSize)
+	links, total, err := s.store.Search(ctx, query, adminPageSize, (page-1)*adminPageSize)
 	if err != nil {
-		h.fail(w, r, err)
-		return
+		return nil, err
 	}
-	httpx.JSON(w, http.StatusOK, searchPage{Links: links, Total: total, PageSize: adminPageSize})
+	return SearchLinks200JSONResponse{Links: links, Total: total, PageSize: adminPageSize}, nil
 }
 
-func (h *handler) delete(w http.ResponseWriter, r *http.Request) {
-	code := r.PathValue("code")
-	err := h.store.Delete(r.Context(), code)
+func (s *server) DeleteLink(ctx context.Context, request DeleteLinkRequestObject) (DeleteLinkResponseObject, error) {
+	err := s.store.Delete(ctx, request.Code)
 	if errors.Is(err, ErrNotFound) {
-		httpx.Error(w, http.StatusNotFound, "no link has that code")
-		return
+		return DeleteLink404JSONResponse{Error: noSuchLink}, nil
 	}
 	if err != nil {
-		h.fail(w, r, err)
-		return
+		return nil, err
 	}
 	// Who deleted what, for whoever asks later.
-	slog.InfoContext(r.Context(), "link deleted", "code", code, "admin", auth.Admin(r.Context()))
-	w.WriteHeader(http.StatusNoContent)
+	slog.InfoContext(ctx, "link deleted", "code", request.Code, "admin", auth.Admin(ctx))
+	return DeleteLink204Response{}, nil
 }
 
-func (h *handler) stats(w http.ResponseWriter, r *http.Request) {
-	stats, err := h.store.Stats(r.Context(), statsTop)
+func (s *server) GetStats(ctx context.Context, _ GetStatsRequestObject) (GetStatsResponseObject, error) {
+	stats, err := s.store.Stats(ctx, statsTop)
 	if err != nil {
-		h.fail(w, r, err)
-		return
+		return nil, err
 	}
-	httpx.JSON(w, http.StatusOK, stats)
-}
-
-func (h *handler) fail(w http.ResponseWriter, r *http.Request, err error) {
-	slog.ErrorContext(r.Context(), "request failed", "path", r.URL.Path, "err", err)
-	httpx.Error(w, http.StatusInternalServerError, "something went wrong")
+	return GetStats200JSONResponse(stats), nil
 }
 
 // checkURL says what's wrong with a URL to shorten, or "" when nothing is.

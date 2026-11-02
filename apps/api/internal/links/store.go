@@ -7,27 +7,14 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// Link is a shortened URL.
-type Link struct {
-	Code      string    `json:"code"`
-	URL       string    `json:"url"`
-	Clicks    int64     `json:"clicks"`
-	CreatedAt time.Time `json:"createdAt"`
-}
-
-// Stats sums the links up, for the admin panel.
-type Stats struct {
-	Links  int64  `json:"links"`
-	Clicks int64  `json:"clicks"`
-	Top    []Link `json:"top"`
-}
+// Link and Stats, what the store returns, are generated from openapi.yaml's
+// schemas (api.gen.go): the store fills in the very JSON the api answers.
 
 var (
 	// ErrNotFound means no link has the code.

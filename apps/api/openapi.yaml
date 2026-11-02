@@ -1,0 +1,384 @@
+# The api's contract: every route, what it takes and what it answers. The Go
+# handlers' interfaces and the web app's client are generated from it, and the
+# api checks every request against it before a handler sees it. Change the api
+# here first, then run `just gen` and let the compilers show what to update.
+openapi: 3.1.0
+info:
+  title: fullmono
+  version: "1"
+  description: A URL shortener's JSON api, its redirects, and its admin panel's api.
+  license:
+    name: MIT
+    identifier: MIT
+
+# Each tag is the Go package that serves its operations (internal/<tag>).
+tags:
+  - name: links
+    description: Shortening, the redirects, and the admin panel's search, delete and stats.
+  - name: auth
+    description: The admin's login.
+
+paths:
+  /api/health:
+    get:
+      operationId: getHealth
+      tags: [links]
+      summary: Whether the api and its database answer
+      description: Docker's health check calls it every few seconds.
+      responses:
+        "200":
+          description: Both answer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+        "503":
+          description: The database doesn't answer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/links:
+    get:
+      operationId: listLinks
+      tags: [links]
+      summary: The newest links, at most 50
+      responses:
+        "200":
+          description: Newest first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Link"
+        default:
+          $ref: "#/components/responses/Error"
+    post:
+      operationId: createLink
+      tags: [links]
+      summary: Shorten a URL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url:
+                  type: string
+                  maxLength: 2048
+                  description: An http:// or https:// URL.
+                  examples: ["https://go.dev/doc/"]
+      responses:
+        "201":
+          description: The new link.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Link"
+        "400":
+          description: The URL isn't one to shorten.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /r/{code}:
+    get:
+      operationId: followLink
+      tags: [links]
+      summary: Redirect to a link's URL, counting the visit
+      parameters:
+        - $ref: "#/components/parameters/Code"
+      responses:
+        # 302, not 301: browsers cache a permanent redirect and stop asking,
+        # so the visits would go uncounted.
+        "302":
+          description: To the link's URL.
+          headers:
+            Location:
+              required: true
+              schema:
+                type: string
+        # A person follows the link, not a script: plain text, not JSON.
+        "404":
+          description: No link has the code.
+          content:
+            text/plain:
+              schema:
+                type: string
+        default:
+          $ref: "#/components/responses/Error"
+
+  /api/admin/links:
+    get:
+      operationId: searchLinks
+      tags: [links]
+      summary: Search the links, a page at a time
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: q
+          in: query
+          description: Part of a code or URL, any case; every link when empty.
+          schema:
+            type: string
+            maxLength: 2048
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            # Far past any real list, and short of overflowing the offset.
+            maximum: 1048576
+            default: 1
+      responses:
+        "200":
+          description: One page of the matches, newest first.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchPage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /api/admin/links/{code}:
+    delete:
+      operationId: deleteLink
+      tags: [links]
+      summary: Delete a link
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Code"
+      responses:
+        "204":
+          description: Deleted.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: No link has the code.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /api/admin/stats:
+    get:
+      operationId: getStats
+      tags: [links]
+      summary: The links and clicks so far, and the most clicked links
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: The sums.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Stats"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        default:
+          $ref: "#/components/responses/Error"
+
+  /api/admin/session:
+    post:
+      operationId: logIn
+      tags: [auth]
+      summary: Log in as an admin
+      parameters:
+        - $ref: "#/components/parameters/ForwardedProto"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+                  format: password
+      responses:
+        "200":
+          description: Logged in. The token is in the cookie, never in the body.
+          headers:
+            Set-Cookie:
+              $ref: "#/components/headers/SetCookie"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "401":
+          description: Wrong username or password, the one answer for both.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        default:
+          $ref: "#/components/responses/Error"
+    get:
+      operationId: getSession
+      tags: [auth]
+      summary: Who's logged in
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: The admin the cookie belongs to.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        default:
+          $ref: "#/components/responses/Error"
+    delete:
+      operationId: logOut
+      tags: [auth]
+      summary: Log out
+      parameters:
+        - $ref: "#/components/parameters/ForwardedProto"
+      responses:
+        "204":
+          description: The cookie is dropped.
+          headers:
+            Set-Cookie:
+              $ref: "#/components/headers/SetCookie"
+        default:
+          $ref: "#/components/responses/Error"
+
+components:
+  securitySchemes:
+    # The login token, a JWT, rides in an httpOnly cookie the browser sends by itself.
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: admin_token
+
+  parameters:
+    Code:
+      name: code
+      in: path
+      required: true
+      schema:
+        type: string
+        examples: ["aZ3kQ9x"]
+    # Caddy ends TLS and says which scheme the visitor used: the login cookie
+    # is Secure behind HTTPS, and not over plain HTTP, which would drop it.
+    ForwardedProto:
+      name: X-Forwarded-Proto
+      in: header
+      schema:
+        type: string
+        examples: ["https"]
+
+  headers:
+    SetCookie:
+      description: admin_token, HttpOnly, SameSite=Strict, Path=/api/admin.
+      required: true
+      schema:
+        type: string
+
+  responses:
+    Unauthorized:
+      description: No login cookie, or one that has expired.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Error:
+      description: >-
+        A request this contract rejects (400, or 404 for a route it doesn't
+        have), or a failure on the api's side (500).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+  schemas:
+    Link:
+      description: A shortened URL.
+      type: object
+      required: [code, url, clicks, createdAt]
+      properties:
+        code:
+          type: string
+          examples: ["aZ3kQ9x"]
+        url:
+          type: string
+          examples: ["https://go.dev/doc/"]
+        clicks:
+          type: integer
+          format: int64
+        createdAt:
+          type: string
+          format: date-time
+
+    SearchPage:
+      description: One page of a search, with what paging through it needs.
+      type: object
+      required: [links, total, pageSize]
+      properties:
+        links:
+          type: array
+          items:
+            $ref: "#/components/schemas/Link"
+        total:
+          type: integer
+          description: How many links match, on every page.
+        pageSize:
+          type: integer
+
+    Stats:
+      type: object
+      required: [links, clicks, top]
+      properties:
+        links:
+          type: integer
+          format: int64
+        clicks:
+          type: integer
+          format: int64
+        top:
+          type: array
+          description: The most clicked links, at most 5.
+          items:
+            $ref: "#/components/schemas/Link"
+
+    Session:
+      type: object
+      required: [username]
+      properties:
+        username:
+          type: string
+
+    Health:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          description: Always "ok".
+
+    Error:
+      description: The body of every failed request but a redirect's 404.
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          examples: ["the URL must start with http:// or https://"]

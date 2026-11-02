@@ -26,6 +26,10 @@ lint:
 fmt:
     gofmt -w .
 
+# Regenerate the handlers' interfaces and models (api.gen.go) from openapi.yaml
+gen:
+    go generate ./...
+
 # Build the binary to bin/api
 build:
     go build -o bin/api ./cmd/api

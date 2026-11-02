@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/mAbduqayum/fullmono/apps/api"
 	"github.com/mAbduqayum/fullmono/apps/api/internal/auth"
 	"github.com/mAbduqayum/fullmono/apps/api/internal/httpx"
 	"github.com/mAbduqayum/fullmono/apps/api/internal/links"
@@ -78,12 +79,13 @@ func serve(port, databaseURL, jwtSecret string) error {
 	}
 	defer pool.Close()
 
-	mux := http.NewServeMux()
-	mux.Handle("/api/admin/session", auth.NewHandler(auth.NewPostgresAdmins(pool), tokens))
-	mux.Handle("/", links.NewHandler(links.NewPostgresStore(pool), auth.RequireAdmin(tokens)))
+	handler, err := api.NewHandler(links.NewPostgresStore(pool), auth.NewPostgresAdmins(pool), tokens)
+	if err != nil {
+		return err
+	}
 	server := &http.Server{
 		Addr:              ":" + port,
-		Handler:           httpx.LogRequests(mux),
+		Handler:           httpx.LogRequests(handler),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 	failed := make(chan error, 1)
