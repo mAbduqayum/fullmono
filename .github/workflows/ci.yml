@@ -20,8 +20,8 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # No job pushes with git, so the token is left out of .git/config, where a
-          # later step, or an artifact that uploads the folder, could read it.
+          # No job pushes with git, so the token isn't left in .git/config,
+          # where a later step or an uploaded artifact could read it.
           persist-credentials: false
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
@@ -92,8 +92,9 @@ jobs:
           key: go-${{ runner.os }}-${{ hashFiles('apps/api/go.sum') }}
           restore-keys: go-${{ runner.os }}-
       - run: just lint
-      # The handlers' interfaces are generated from openapi.yaml: this fails when
-      # the contract changed without `just gen`, or api.gen.go was edited by hand.
+      # The handlers' interfaces are generated from openapi.yaml: this fails
+      # when the contract changed without `just gen`, or api.gen.go was edited
+      # by hand.
       - name: Generated code matches openapi.yaml
         run: |
           just gen
@@ -101,8 +102,9 @@ jobs:
           test -z "$(git status --porcelain)"
       - run: just test
       - run: just build
-      # The known vulnerabilities the code reaches, in a module or in Go itself:
-      # new ones are published all the time, so a change that passed may not now.
+      # The known vulnerabilities the code reaches, in a module or in Go
+      # itself: new ones are published all the time, so code that passed
+      # yesterday can fail today.
       - run: just vuln
 
   # A migration that's on main has run on databases that won't run it again:
