@@ -72,12 +72,12 @@ browser is installed on your machine (or in CI).
 ## CI/CD
 
 - **CI** (`ci.yml`) runs on every pull request, checking only what changed:
-  golangci-lint, the unit and integration tests (Postgres as a job service) and
-  a build for the api; formatting, oxlint, the tests and a type-checked build for
-  the web app; for both, that the code generated from openapi.yaml is up to
-  date; and, beside them, `just test-e2e`. Each job installs its tools
-  from mise.toml and runs the same recipes you do, and `just ci` runs all the
-  checks locally.
+  golangci-lint, the unit and integration tests (Postgres as a job service), a
+  build and govulncheck for the api; formatting, oxlint, the tests and a
+  type-checked build for the web app; for both, that the code generated from
+  openapi.yaml is up to date; and, beside them, `just test-e2e`. Each job
+  installs its tools from mise.toml and runs the same recipes you do, and
+  `just ci` runs all the checks locally.
 - **Release** (`release.yml`) runs on every push to `main`: CI again, then both
   images pushed to `ghcr.io/mabduqayum/fullmono-{api,web}`, tagged with the
   commit's sha and `latest`, then the deploy.

@@ -22,6 +22,11 @@ test-integration:
 lint:
     golangci-lint run
 
+# Known vulnerabilities in the modules or Go itself, only the ones the code
+# reaches: a call into a vulnerable function, not just the module in go.mod.
+vuln:
+    go tool govulncheck ./...
+
 # Format the Go files
 fmt:
     gofmt -w .

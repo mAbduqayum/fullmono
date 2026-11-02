@@ -90,6 +90,9 @@ jobs:
           test -z "$(git status --porcelain)"
       - run: just test
       - run: just build
+      # The known vulnerabilities the code reaches, in a module or in Go itself:
+      # new ones are published all the time, so a change that passed may not now.
+      - run: just vuln
 
   web:
     needs: changes

@@ -114,5 +114,6 @@ gen:
 
 # What CI checks, run here first
 ci: lint test test-integration
+    just api vuln
     just web build
     just test-e2e
