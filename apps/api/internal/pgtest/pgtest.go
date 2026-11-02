@@ -21,6 +21,24 @@ import (
 // and dropped after it, so no test sees another's rows or the dev data.
 func Pool(t *testing.T) *pgxpool.Pool {
 	t.Helper()
+	databaseURL := newDatabase(t)
+	if err := migrations.Up(databaseURL); err != nil {
+		t.Fatal(err)
+	}
+	return connect(t, databaseURL)
+}
+
+// EmptyPool is Pool without the migrations: a database of the test's own, with
+// no tables in it.
+func EmptyPool(t *testing.T) *pgxpool.Pool {
+	t.Helper()
+	return connect(t, newDatabase(t))
+}
+
+// newDatabase creates a database for the test, dropped after it, and returns
+// its URL.
+func newDatabase(t *testing.T) string {
+	t.Helper()
 	serverURL := os.Getenv("TEST_DATABASE_URL")
 	if serverURL == "" {
 		t.Skip("TEST_DATABASE_URL is unset; `just test-integration` runs this against Postgres")
@@ -47,10 +65,12 @@ func Pool(t *testing.T) *pgxpool.Pool {
 		t.Fatal(err)
 	}
 	u.Path = "/" + name
-	if err := migrations.Up(u.String()); err != nil {
-		t.Fatal(err)
-	}
-	pool, err := pgxpool.New(t.Context(), u.String())
+	return u.String()
+}
+
+func connect(t *testing.T, databaseURL string) *pgxpool.Pool {
+	t.Helper()
+	pool, err := pgxpool.New(t.Context(), databaseURL)
 	if err != nil {
 		t.Fatal(err)
 	}
