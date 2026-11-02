@@ -104,3 +104,7 @@ Two tables, which [schema.sql](../apps/api/migrations/schema.sql) shows whole:
   password itself.
 
 They aren't related: a link belongs to nobody.
+
+The api's SQL is in [internal/db](../apps/api/internal/db/links.sql), one named
+query at a time. sqlc checks each against the schema the migrations build and
+generates a Go method for it (`just gen`), which the stores call.

@@ -26,10 +26,17 @@ regenerated interface, and the web calls that no longer fit. Never edit the
 generated `api.gen.go` or `api.gen.ts`; CI fails when they don't match the
 contract.
 
+A query is SQL too, in
+[apps/api/internal/db](../apps/api/internal/db/links.sql). Write it there under
+a `-- name:` line and run `just gen`: sqlc checks it against the schema and
+writes a Go method for it, with typed parameters and results, for a store to
+call.
+
 A schema change is a new migration in `apps/api/migrations/`, numbered after
 the last one; [its README](../apps/api/migrations/README.md) has the rules.
 Update [schema.sql](../apps/api/migrations/schema.sql) by hand to match;
-`just test-integration` checks it does.
+`just test-integration` checks it does. Then `just gen`: sqlc reads the
+migrations, so it fails on a query the change breaks.
 
 ## Commit messages
 

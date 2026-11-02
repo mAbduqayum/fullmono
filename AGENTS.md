@@ -13,7 +13,8 @@ the one it can't install. Run everything through `just`, from the root:
 - `just test-integration`: the api's tests against Postgres in Docker
 - `just test-e2e`: Playwright against the whole stack, in Docker
 - `just lint`, `just fmt`: every app
-- `just gen`: the code both apps generate from `apps/api/openapi.yaml`
+- `just gen`: the code both apps generate from `apps/api/openapi.yaml`, and
+  the api's from its SQL queries
 - `just ci`: everything CI checks
 
 One app alone: `just api <recipe>`, `just web <recipe>`, `just e2e <recipe>`.
@@ -25,6 +26,9 @@ One app alone: `just api <recipe>`, `just web <recipe>`, `just e2e <recipe>`.
 - The api's routes are its contract, `apps/api/openapi.yaml`: change it first,
   then `just gen`, then the handlers and the web calls the compiler points at.
   Never edit a `*.gen.*` file: it's regenerated.
+- SQL lives in `apps/api/internal/db/*.sql`, one `-- name:` query at a time;
+  `just gen` (sqlc) turns each into a method of `db.Queries`, which the stores
+  call. No SQL strings in Go, and never edit the generated `.go` files there.
 - A change comes with its tests, beside the code: a handler's run on the fake
   store (`handler_test.go`), what the contract refuses through the whole
   handler (`apps/api/api_test.go`), SQL's against Postgres (`store_test.go`).

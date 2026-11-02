@@ -13,7 +13,9 @@ they add up to, for reading.
    undoes it.
 2. Update [schema.sql](schema.sql) to match: `just test-integration` builds
    both and fails if they differ.
-3. `just db` applies it to your database.
+3. `just gen`: [sqlc](../sqlc.yaml) reads these files, so its models gain the
+   change, and a query that no longer fits fails here rather than at runtime.
+4. `just db` applies it to your database.
 
 A file runs as one transaction, so a statement that fails leaves none of the
 file's changes behind. That's also why `CREATE INDEX CONCURRENTLY`, which can't

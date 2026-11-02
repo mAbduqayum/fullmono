@@ -2,11 +2,12 @@
 
 A URL shortener, kept small on purpose: it's here to show the tooling around
 a fullstack monorepo — mise for the tools, one `justfile`, an OpenAPI contract
-both apps' code is generated from, Docker images and compose, Caddy in front,
-git hooks, CI/CD on GitHub Actions and Dependabot.
+both apps' code is generated from, sqlc for the SQL, Docker images and compose,
+Caddy in front, git hooks, CI/CD on GitHub Actions and Dependabot.
 
-- **api**: Go, `net/http` and Postgres (pgx). `POST /api/links` shortens a URL,
-  `GET /api/links` lists them, `GET /r/{code}` redirects and counts the click.
+- **api**: Go, `net/http` and Postgres (pgx, through queries sqlc turns into
+  Go). `POST /api/links` shortens a URL, `GET /api/links` lists them,
+  `GET /r/{code}` redirects and counts the click.
   Under `/api/admin`, admins search, delete and count the links, logged in with
   a JWT in an httpOnly cookie.
 - **web**: React and Vite on bun, served by Caddy, which also routes `/api` and
@@ -20,7 +21,7 @@ vulnerability, privately: [SECURITY.md](SECURITY.md).
 
 You need `docker` and [`mise`](https://mise.jdx.dev), which installs the rest at
 the versions [mise.toml](mise.toml) pins: `go`, `bun`, `just`, `lefthook`,
-`golangci-lint`, `actionlint` and `zizmor`.
+`golangci-lint`, `sqlc`, `actionlint` and `zizmor`.
 
 ```sh
 mise install      # the tools
@@ -43,7 +44,7 @@ To work on the code with reload, `just dev` runs Postgres in Docker and the api
 
 ```
 apps/
-  api/            Go: openapi.yaml (the routes), cmd/api, internal/links and auth, migrations/
+  api/            Go: openapi.yaml (the routes), cmd/api, internal/links, auth and db (the SQL), migrations/
   web/            React + Vite, and the Caddyfile it's served with
 e2e/              Playwright tests of the whole stack, run in Docker
 deploy/           compose.yaml for the server: the released images, HTTPS
@@ -77,11 +78,11 @@ image, so no browser is installed on your machine (or in CI).
   golangci-lint, the unit and integration tests (Postgres as a job service), a
   build and govulncheck for the api; formatting, oxlint, the tests and a
   type-checked build for the web app; for both, that the code generated from
-  openapi.yaml is up to date; beside them, `just test-e2e`; and, when they
-  change, actionlint and zizmor on the workflows. Each job installs its tools
-  from mise.toml and runs the same recipes you do, and `just ci` runs all the
-  checks locally. Every action is pinned to a commit's hash, which Dependabot
-  keeps current.
+  openapi.yaml (and the api's from its SQL) is up to date; beside them,
+  `just test-e2e`; and, when they change, actionlint and zizmor on the
+  workflows. Each job installs its tools from mise.toml and runs the same
+  recipes you do, and `just ci` runs all the checks locally. Every action is
+  pinned to a commit's hash, which Dependabot keeps current.
 - **Release** (`release.yml`) runs on every push to `main`: CI again, then both
   images pushed to `ghcr.io/mabduqayum/fullmono-{api,web}`, tagged with the
   commit's sha and `latest`, then the deploy.
