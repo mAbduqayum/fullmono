@@ -24,6 +24,7 @@ jobs:
           filters: |
             api:
               - apps/api/**
+              - scripts/check-migrations.sh
               - mise.toml
               - .github/workflows/ci.yml
             web:
@@ -93,6 +94,22 @@ jobs:
       # The known vulnerabilities the code reaches, in a module or in Go itself:
       # new ones are published all the time, so a change that passed may not now.
       - run: just vuln
+
+  # A migration that's on main has run on databases that won't run it again:
+  # a change to the schema adds a new one (apps/api/migrations/README.md).
+  migrations:
+    needs: changes
+    if: needs.changes.outputs.api == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The whole history, for the base to compare with.
+          fetch-depth: 0
+      - run: scripts/check-migrations.sh "$BASE"
+        env:
+          # A pull request's base, or on a push to main what main was before it.
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
 
   web:
     needs: changes

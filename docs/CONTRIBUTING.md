@@ -56,7 +56,7 @@ docs: explain the deploy job
 | When         | What runs                                                  |
 | ------------ | ---------------------------------------------------------- |
 | `git commit` | the staged files formatted and linted; the message checked |
-| `git push`   | the unit tests                                             |
+| `git push`   | the unit tests; no migration on `main` changed             |
 
 > A failing hook stops the commit or the push. Fix what it reports instead of
 > skipping it with `--no-verify`: CI runs the same lint and tests, so skipping

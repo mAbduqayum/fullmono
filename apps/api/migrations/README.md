@@ -23,7 +23,9 @@ run inside a transaction, needs a file of its own.
 
 - **Never change a migration that's on main.** A database that already ran it
   won't run it again, so the edit would reach only new databases, and they'd
-  differ from production. Change the schema with a new migration instead.
+  differ from production. Change the schema with a new migration instead:
+  [check-migrations.sh](../../../scripts/check-migrations.sh) refuses an edit,
+  on `git push` and in CI.
 - **Keep the running api working.** A deploy migrates first, while the old api
   still serves, and a rollback runs the old api on the new schema: every
   migration has to work with the code before it too. So a new column is

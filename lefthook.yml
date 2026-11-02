@@ -51,3 +51,6 @@ pre-push:
   jobs:
     - name: test
       run: just test
+
+    - name: migrations
+      run: scripts/check-migrations.sh origin/main
