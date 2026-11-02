@@ -113,7 +113,7 @@ fmt:
     just web fmt
     just e2e fmt
 
-# Regenerate the code both apps build from the api's contract, apps/api/openapi.yaml
+# Regenerate the code both apps build from the api's contract and its SQL queries
 gen:
     just api gen
     just web gen

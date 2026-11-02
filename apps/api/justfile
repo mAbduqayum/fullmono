@@ -31,8 +31,9 @@ vuln:
 fmt:
     gofmt -w .
 
-# Regenerate the handlers' interfaces and models (api.gen.go) from openapi.yaml
+# Regenerate the code from openapi.yaml (api.gen.go) and the SQL queries (internal/db)
 gen:
+    sqlc generate
     go generate ./...
 
 # Build the binary to bin/api

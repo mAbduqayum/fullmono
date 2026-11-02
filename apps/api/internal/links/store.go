@@ -11,6 +11,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/mAbduqayum/fullmono/apps/api/internal/db"
 )
 
 // Link and Stats, what the store returns, are generated from openapi.yaml's
@@ -41,25 +43,22 @@ type Store interface {
 	Stats(ctx context.Context, top int) (Stats, error)
 }
 
-// PostgresStore keeps the links in the links table.
+// PostgresStore keeps the links in the links table, through the queries sqlc
+// generates from internal/db/links.sql.
 type PostgresStore struct {
-	pool *pgxpool.Pool
+	pool    *pgxpool.Pool
+	queries *db.Queries
 }
 
 func NewPostgresStore(pool *pgxpool.Pool) *PostgresStore {
-	return &PostgresStore{pool: pool}
+	return &PostgresStore{pool: pool, queries: db.New(pool)}
 }
 
 // uniqueViolation is Postgres's SQLSTATE for a duplicate key.
 const uniqueViolation = "23505"
 
 func (s *PostgresStore) Create(ctx context.Context, code, url string) (Link, error) {
-	var link Link
-	err := s.pool.QueryRow(ctx,
-		`INSERT INTO links (code, url) VALUES ($1, $2)
-		 RETURNING code, url, clicks, created_at`,
-		code, url,
-	).Scan(&link.Code, &link.URL, &link.Clicks, &link.CreatedAt)
+	row, err := s.queries.CreateLink(ctx, db.CreateLinkParams{Code: code, URL: url})
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == uniqueViolation {
 		return Link{}, ErrCodeTaken
@@ -67,35 +66,33 @@ func (s *PostgresStore) Create(ctx context.Context, code, url string) (Link, err
 	if err != nil {
 		return Link{}, fmt.Errorf("insert link: %w", err)
 	}
-	return link, nil
+	return toLink(row), nil
 }
 
 func (s *PostgresStore) List(ctx context.Context, limit int) ([]Link, error) {
-	rows, err := s.pool.Query(ctx,
-		`SELECT code, url, clicks, created_at FROM links
-		 ORDER BY created_at DESC LIMIT $1`,
-		limit,
-	)
+	rows, err := s.queries.ListLinks(ctx, int32(limit))
 	if err != nil {
 		return nil, fmt.Errorf("list links: %w", err)
 	}
-	return collectLinks(rows)
+	return toLinks(rows), nil
 }
 
-func collectLinks(rows pgx.Rows) ([]Link, error) {
-	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (Link, error) {
-		var link Link
-		err := row.Scan(&link.Code, &link.URL, &link.Clicks, &link.CreatedAt)
-		return link, err
-	})
+// toLink is a row of the links table as the api answers it: without its id.
+func toLink(row db.Link) Link {
+	return Link{Code: row.Code, URL: row.URL, Clicks: row.Clicks, CreatedAt: row.CreatedAt}
+}
+
+// toLinks never returns nil, which would be JSON's null rather than [].
+func toLinks(rows []db.Link) []Link {
+	links := make([]Link, len(rows))
+	for i, row := range rows {
+		links[i] = toLink(row)
+	}
+	return links
 }
 
 func (s *PostgresStore) Visit(ctx context.Context, code string) (string, error) {
-	var url string
-	err := s.pool.QueryRow(ctx,
-		`UPDATE links SET clicks = clicks + 1 WHERE code = $1 RETURNING url`,
-		code,
-	).Scan(&url)
+	url, err := s.queries.VisitLink(ctx, code)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", ErrNotFound
 	}
@@ -117,53 +114,39 @@ var likeEscaper = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
 // index. That's fine for an admin page; at scale, pg_trgm's indexes can.
 func (s *PostgresStore) Search(ctx context.Context, query string, limit, offset int) ([]Link, int, error) {
 	pattern := "%" + likeEscaper.Replace(query) + "%"
-	var total int
-	if err := s.pool.QueryRow(ctx,
-		`SELECT count(*) FROM links WHERE code ILIKE $1 OR url ILIKE $1`, pattern,
-	).Scan(&total); err != nil {
+	total, err := s.queries.CountMatchingLinks(ctx, pattern)
+	if err != nil {
 		return nil, 0, fmt.Errorf("count links: %w", err)
 	}
-	// id breaks ties between links made in the same instant, so pages never overlap.
-	rows, err := s.pool.Query(ctx,
-		`SELECT code, url, clicks, created_at FROM links
-		 WHERE code ILIKE $1 OR url ILIKE $1
-		 ORDER BY created_at DESC, id DESC LIMIT $2 OFFSET $3`,
-		pattern, limit, offset,
-	)
+	// openapi.yaml caps the page, which keeps the offset well inside an int32.
+	rows, err := s.queries.SearchLinks(ctx, db.SearchLinksParams{
+		Pattern: pattern, PageSize: int32(limit), Skip: int32(offset),
+	})
 	if err != nil {
 		return nil, 0, fmt.Errorf("search links: %w", err)
 	}
-	links, err := collectLinks(rows)
-	return links, total, err
+	return toLinks(rows), int(total), nil
 }
 
 func (s *PostgresStore) Delete(ctx context.Context, code string) error {
-	tag, err := s.pool.Exec(ctx, `DELETE FROM links WHERE code = $1`, code)
+	deleted, err := s.queries.DeleteLink(ctx, code)
 	if err != nil {
 		return fmt.Errorf("delete link: %w", err)
 	}
-	if tag.RowsAffected() == 0 {
+	if deleted == 0 {
 		return ErrNotFound
 	}
 	return nil
 }
 
 func (s *PostgresStore) Stats(ctx context.Context, top int) (Stats, error) {
-	var stats Stats
-	// sum() of bigints is a numeric, and NULL over no rows at all.
-	if err := s.pool.QueryRow(ctx,
-		`SELECT count(*), coalesce(sum(clicks), 0)::bigint FROM links`,
-	).Scan(&stats.Links, &stats.Clicks); err != nil {
+	counts, err := s.queries.CountLinksAndClicks(ctx)
+	if err != nil {
 		return Stats{}, fmt.Errorf("count links: %w", err)
 	}
-	rows, err := s.pool.Query(ctx,
-		`SELECT code, url, clicks, created_at FROM links WHERE clicks > 0
-		 ORDER BY clicks DESC, created_at DESC LIMIT $1`,
-		top,
-	)
+	rows, err := s.queries.TopLinks(ctx, int32(top))
 	if err != nil {
 		return Stats{}, fmt.Errorf("top links: %w", err)
 	}
-	stats.Top, err = collectLinks(rows)
-	return stats, err
+	return Stats{Links: counts.Links, Clicks: counts.Clicks, Top: toLinks(rows)}, nil
 }

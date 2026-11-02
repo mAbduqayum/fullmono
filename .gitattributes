@@ -4,7 +4,9 @@
 # a Windows clone doesn't turn the shell scripts or the sources into CRLF.
 * text=auto eol=lf
 
-# Code generated from apps/api/openapi.yaml (`just gen`): GitHub folds it in
-# pull requests' diffs and leaves it out of the repository's language stats.
+# Code `just gen` generates from apps/api/openapi.yaml and the api's SQL
+# queries: GitHub folds it in pull requests' diffs and leaves it out of the
+# repository's language stats.
 apps/api/internal/*/api.gen.go linguist-generated
+apps/api/internal/db/*.go linguist-generated
 apps/web/src/api.gen.ts linguist-generated

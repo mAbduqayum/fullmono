@@ -7,6 +7,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/mAbduqayum/fullmono/apps/api/internal/db"
 )
 
 // ErrNoAdmin means no admin has the username.
@@ -18,36 +20,30 @@ type Admins interface {
 	PasswordHash(ctx context.Context, username string) ([]byte, error)
 }
 
-// PostgresAdmins keeps the admins in the admins table.
+// PostgresAdmins keeps the admins in the admins table, through the queries
+// sqlc generates from internal/db/admins.sql.
 type PostgresAdmins struct {
-	pool *pgxpool.Pool
+	queries *db.Queries
 }
 
 func NewPostgresAdmins(pool *pgxpool.Pool) *PostgresAdmins {
-	return &PostgresAdmins{pool: pool}
+	return &PostgresAdmins{queries: db.New(pool)}
 }
 
 func (a *PostgresAdmins) PasswordHash(ctx context.Context, username string) ([]byte, error) {
-	var hash []byte
-	err := a.pool.QueryRow(ctx,
-		`SELECT password_hash FROM admins WHERE username = $1`, username,
-	).Scan(&hash)
+	hash, err := a.queries.AdminPasswordHash(ctx, username)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNoAdmin
 	}
 	if err != nil {
 		return nil, fmt.Errorf("find admin: %w", err)
 	}
-	return hash, nil
+	return []byte(hash), nil
 }
 
 // Set creates the admin, or changes their password if they exist.
 func (a *PostgresAdmins) Set(ctx context.Context, username string, hash []byte) error {
-	_, err := a.pool.Exec(ctx,
-		`INSERT INTO admins (username, password_hash) VALUES ($1, $2)
-		 ON CONFLICT (username) DO UPDATE SET password_hash = EXCLUDED.password_hash`,
-		username, hash,
-	)
+	err := a.queries.SetAdmin(ctx, db.SetAdminParams{Username: username, PasswordHash: string(hash)})
 	if err != nil {
 		return fmt.Errorf("set admin: %w", err)
 	}

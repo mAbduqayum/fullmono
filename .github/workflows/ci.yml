@@ -80,7 +80,7 @@ jobs:
       - uses: jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8 # v5.1.2
         with:
           version: 2026.10.11
-          install_args: go just golangci-lint
+          install_args: go just golangci-lint sqlc
       # Go's downloaded modules and build cache, and golangci-lint's results:
       # what go.sum hasn't changed is checked again in seconds.
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -92,10 +92,10 @@ jobs:
           key: go-${{ runner.os }}-${{ hashFiles('apps/api/go.sum') }}
           restore-keys: go-${{ runner.os }}-
       - run: just lint
-      # The handlers' interfaces are generated from openapi.yaml: this fails
-      # when the contract changed without `just gen`, or api.gen.go was edited
-      # by hand.
-      - name: Generated code matches openapi.yaml
+      # The handlers' interfaces are generated from openapi.yaml, and
+      # internal/db from the SQL queries: this fails when either changed
+      # without `just gen`, or the generated code was edited by hand.
+      - name: Generated code matches openapi.yaml and the queries
         run: |
           just gen
           git diff --exit-code

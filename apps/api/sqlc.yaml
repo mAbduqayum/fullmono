@@ -1,0 +1,22 @@
+# sqlc's settings. `just gen` turns each query in internal/db/*.sql into a
+# method of db.Queries, named by its `-- name:` line, with Go types for its
+# parameters and columns, checked against the schema the migrations build.
+version: "2"
+sql:
+  - engine: postgresql
+    # The up migrations, in order. Not the whole folder: schema.sql, their sum,
+    # would create every table a second time.
+    schema: "migrations/*.up.sql"
+    queries: internal/db
+    gen:
+      go:
+        package: db
+        out: internal/db
+        sql_package: pgx/v5
+        # url -> URL, as Go names initialisms.
+        initialisms: [id, url]
+        overrides:
+          # Go's own time type, not pgx's pgtype.Timestamptz: the columns are
+          # NOT NULL, so there's no "no value" for pgtype to hold.
+          - db_type: timestamptz
+            go_type: time.Time
