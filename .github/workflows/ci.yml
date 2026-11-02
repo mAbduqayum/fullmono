@@ -28,6 +28,8 @@ jobs:
               - .github/workflows/ci.yml
             web:
               - apps/web/**
+              # The web's api types are generated from it.
+              - apps/api/openapi.yaml
               - mise.toml
               - .github/workflows/ci.yml
             e2e:
@@ -79,6 +81,13 @@ jobs:
           key: go-${{ runner.os }}-${{ hashFiles('apps/api/go.sum') }}
           restore-keys: go-${{ runner.os }}-
       - run: just lint
+      # The handlers' interfaces are generated from openapi.yaml: this fails when
+      # the contract changed without `just gen`, or api.gen.go was edited by hand.
+      - name: Generated code matches openapi.yaml
+        run: |
+          just gen
+          git diff --exit-code
+          test -z "$(git status --porcelain)"
       - run: just test
       - run: just build
 
@@ -97,6 +106,12 @@ jobs:
           install_args: bun just
       - run: bun install --frozen-lockfile
       - run: just lint
+      # The same check for the api's types, src/api.gen.ts.
+      - name: Generated code matches openapi.yaml
+        run: |
+          just gen
+          git diff --exit-code
+          test -z "$(git status --porcelain)"
       - run: just test
       - run: just build
 

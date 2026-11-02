@@ -107,6 +107,11 @@ fmt:
     just web fmt
     just e2e fmt
 
+# Regenerate the code both apps build from the api's contract, apps/api/openapi.yaml
+gen:
+    just api gen
+    just web gen
+
 # What CI checks, run here first
 ci: lint test test-integration
     just web build
