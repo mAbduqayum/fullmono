@@ -49,6 +49,8 @@ updates:
       compose:
         patterns: ["*"]
 
+  # The workflows name each action by a commit's hash, which a moved tag can't
+  # change under them; Dependabot updates the hash and the version beside it.
   - package-ecosystem: github-actions
     directory: /
     schedule:
