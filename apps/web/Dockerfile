@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # Build stage: bun and node_modules, never shipped.
-FROM oven/bun:1.4.3-alpine AS build
+FROM oven/bun:1.4.4-alpine AS build
 WORKDIR /app
 
 # Dependencies first: this layer is reused until package.json or bun.lock change.
