@@ -56,6 +56,22 @@ logs:
 psql:
     docker compose exec db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 
+# Dump the database into backups/, as the server does every day
+backup:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    mkdir -p backups
+    file=backups/$(date +%F-%H%M%S).dump
+    docker compose exec -T db sh -c 'pg_dump --format=custom -U "$POSTGRES_USER" "$POSTGRES_DB"' > "$file.partial"
+    mv "$file.partial" "$file"
+    echo "$file"
+
+# Replace the database's contents with a dump's: `just restore backups/<file>.dump`
+[confirm("Replace every link and admin with the dump's? [y/N]")]
+restore file:
+    # One transaction: a dump that fails to restore leaves the database as it was.
+    docker compose exec -T db sh -c 'pg_restore --clean --if-exists --single-transaction --no-owner -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < {{ quote(file) }}
+
 # A few links to click around with
 seed:
     ./scripts/seed.sh

@@ -6,8 +6,18 @@
 # docs/operations.md has the rest: the first deploy, rollbacks, backups.
 name: fullmono
 
+# Where each container's output goes, which `docker compose logs` reads.
+# Docker keeps all of it by default, until the disk fills: here, the last
+# three files of 10 MB each.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
 x-api: &api
   image: ghcr.io/mabduqayum/fullmono-api:${TAG:?set TAG in the server's .env}
+  logging: *logging
   environment:
     DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable
     JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in the server's .env}
@@ -16,6 +26,7 @@ services:
   db:
     image: postgres:18-alpine
     restart: unless-stopped
+    logging: *logging
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -27,6 +38,37 @@ services:
       interval: 2s
       timeout: 3s
       retries: 15
+
+  # A dump of the database when it starts and every day after, into
+  # backups/ beside this file, each day's replacing that day's, two weeks
+  # kept. They share the database's disk, so copy them off the server too.
+  backup:
+    # db's image, so pg_dump is the server's own version.
+    image: postgres:18-alpine
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      # pg_dump reads these instead of flags.
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB}
+    volumes:
+      - ./backups:/backups
+    entrypoint: [sh, -c]
+    # $$ is a $ that compose leaves to the shell. A dump that fails halfway
+    # stays a .partial, so every .dump is a whole one.
+    command:
+      - |
+        while true; do
+          file=/backups/$$(date +%F).dump
+          pg_dump --format=custom --file="$$file.partial" && mv "$$file.partial" "$$file" && echo "backed up to $$file"
+          find /backups -name '*.dump' -mtime +14 -delete
+          sleep 86400
+        done
+    depends_on:
+      db:
+        condition: service_healthy
 
   migrate:
     <<: *api
@@ -45,6 +87,7 @@ services:
   web:
     image: ghcr.io/mabduqayum/fullmono-web:${TAG:?set TAG in the server's .env}
     restart: unless-stopped
+    logging: *logging
     environment:
       SITE_ADDRESS: ${SITE_ADDRESS}
     ports:
