@@ -49,7 +49,7 @@ apps/
   web/            React + Vite, and the Caddyfile it's served with
 e2e/              Playwright tests of the whole stack, run in Docker
 deploy/           compose.yaml for the server: the released images, HTTPS
-docs/             how the parts fit together, why (decisions/), how to contribute, and gh
+docs/             how the parts fit together, why (decisions/), how to contribute, run it (operations.md), and gh
 scripts/          small helpers the recipes call
 .github/          CI, release, Dependabot, issue and pull request templates, code owners
 compose.yaml      the local stack: db, migrate, api, web, and dozzle and e2e on demand
@@ -86,29 +86,14 @@ image, so no browser is installed on your machine (or in CI).
   pinned to a commit's hash, which Dependabot keeps current.
 - **Release** (`release.yml`) runs on every push to `main`: CI again, then both
   images pushed to `ghcr.io/mabduqayum/fullmono-{api,web}`, tagged with the
-  commit's sha and `latest`, then the deploy.
+  commit's sha and `latest`, then the deploy (`deploy.yml`), which also rolls
+  back to an earlier sha when run by hand.
 
 ### Deploying
 
-The deploy job is skipped until there is a server. To add one:
-
-1. On the server (Docker installed), create `~/fullmono/.env` with
-   `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `SITE_ADDRESS` (your
-   domain, whose DNS points at the server) and `JWT_SECRET`
-   (`openssl rand -base64 32`). Caddy fetches its HTTPS certificate on the
-   first start.
-2. Make the two GHCR packages public, or `docker login ghcr.io` on the server.
-3. In the repository's settings, add the variable `DEPLOY_HOST` (`user@host`)
-   and the secrets `DEPLOY_SSH_KEY` (a private key the server accepts) and
-   `DEPLOY_KNOWN_HOSTS` (`ssh-keyscan <host>`).
-
-Every release then copies `deploy/compose.yaml` to the server and restarts the
-stack on the new images; migrations run before the api starts. To add an admin
-there, in `~/fullmono`:
-
-```sh
-read -rsp 'Password: ' p && echo && printf '%s\n' "$p" | docker compose run --rm -T api set-admin alice
-```
+The deploy job is skipped until the repository has a server:
+[docs/operations.md](docs/operations.md) sets one up, and says how to roll
+back, restore a backup, read the logs and manage the admins there.
 
 ## License
 

@@ -29,7 +29,7 @@ with `/api/admin` requests ([token.go](../../apps/api/internal/auth/token.go),
   request carries the cookie, which rules out CSRF too.
 - Logging out drops the cookie, but a copied token stays valid until it
   expires. Nothing can revoke one admin's login: changing `JWT_SECRET` logs
-  every admin out.
+  every admin out ([operations.md](../operations.md#rotating-secrets)).
 
 ## Revisit when
 

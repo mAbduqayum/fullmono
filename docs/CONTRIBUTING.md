@@ -83,4 +83,5 @@ it was tested, and a checklist to tick before asking for a review.
 it changes.
 
 A merge into `main` releases: [release.yml](../.github/workflows/release.yml)
-runs CI again, pushes the images, then deploys them.
+runs CI again, pushes the images, then deploys them. If it breaks the site,
+[operations.md](operations.md#rolling-back) rolls it back.

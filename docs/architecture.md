@@ -2,7 +2,8 @@
 
 How fullmono's parts fit together. Why they're these parts, and what each
 choice costs: [the decisions](decisions/README.md). To run it, see the
-[README](../README.md); to change it, [CONTRIBUTING.md](CONTRIBUTING.md).
+[README](../README.md); to change it, [CONTRIBUTING.md](CONTRIBUTING.md); to
+run it in production, [operations.md](operations.md).
 
 ## Containers
 

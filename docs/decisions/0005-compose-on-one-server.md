@@ -27,7 +27,8 @@ and log files of capped size.
 - Each deploy recreates the api and Caddy, so the site is down for a few
   seconds.
 - The server is a single point of failure: when it's down, so is the site.
-- Running it is ours to do: backups, OS updates, disk space.
+- Running it is ours to do: backups, OS updates, disk space
+  ([operations.md](../operations.md)).
 - There are logs, but no metrics or alerts: nothing tells anyone the site is
   down, unless an outside check (an uptime monitor) does.
 - One api process, so state in its memory, such as the login limit's counts,
