@@ -21,6 +21,13 @@
 	header {
 		X-Content-Type-Options nosniff
 		Referrer-Policy strict-origin-when-cross-origin
+		# HTTPS only, for a year, even if a link says http://. Browsers ignore
+		# it over plain HTTP, so it changes nothing on the local :80.
+		Strict-Transport-Security "max-age=31536000"
+		# Scripts, styles and requests from this origin only: an injected
+		# <script> or one from another site doesn't run, nor does the page load
+		# in another site's frame.
+		Content-Security-Policy "default-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 		-Server
 	}
 
