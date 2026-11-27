@@ -32,7 +32,7 @@ import (
 const shutdownTimeout = 5 * time.Second
 
 func main() {
-	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+	slog.SetDefault(slog.New(httpx.LogHandler{Handler: slog.NewJSONHandler(os.Stdout, nil)}))
 	if err := run(os.Args[1:]); err != nil {
 		slog.Error("exiting", "err", err)
 		os.Exit(1)
@@ -85,7 +85,7 @@ func serve(port, databaseURL, jwtSecret string) error {
 	}
 	server := &http.Server{
 		Addr:              ":" + port,
-		Handler:           httpx.LogRequests(handler),
+		Handler:           httpx.RequestID(httpx.LogRequests(handler)),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 	failed := make(chan error, 1)

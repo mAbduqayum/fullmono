@@ -1,8 +1,10 @@
 // Package httpx holds what every handler of the api shares: its JSON answers,
-// its failures and its request log.
+// its failures, its request ids and its request log.
 package httpx
 
 import (
+	"context"
+	"crypto/rand"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -27,10 +29,56 @@ func BadRequest(w http.ResponseWriter, _ *http.Request, err error) {
 }
 
 // Fail logs what went wrong on the api's side, and answers without the
-// details, which are for whoever reads the logs, not for the visitor.
+// details, which are for whoever reads the logs, not for the visitor. The
+// answer names the request, so a visitor's report leads to its log lines.
 func Fail(w http.ResponseWriter, r *http.Request, err error) {
 	slog.ErrorContext(r.Context(), "request failed", "path", r.URL.Path, "err", err)
-	Error(w, http.StatusInternalServerError, "something went wrong")
+	message := "something went wrong"
+	if id := RequestIDOf(r.Context()); id != "" {
+		message += " (request " + id + ")"
+	}
+	Error(w, http.StatusInternalServerError, message)
+}
+
+type requestIDKey struct{}
+
+// RequestID gives each request an id of its own: in its context, where each
+// line it logs picks it up (LogHandler), and in the answer's X-Request-Id
+// header. One the request arrives with is ignored: a visitor can send any.
+func RequestID(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		id := rand.Text()
+		w.Header().Set("X-Request-Id", id)
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), requestIDKey{}, id)))
+	})
+}
+
+// RequestIDOf is the id RequestID gave a request, or "" outside one.
+func RequestIDOf(ctx context.Context) string {
+	id, _ := ctx.Value(requestIDKey{}).(string)
+	return id
+}
+
+// LogHandler adds the request's id to each line logged with its context
+// (slog.InfoContext and the like), so one request's lines can be found among
+// everyone's.
+type LogHandler struct {
+	slog.Handler
+}
+
+func (h LogHandler) Handle(ctx context.Context, record slog.Record) error {
+	if id := RequestIDOf(ctx); id != "" {
+		record.AddAttrs(slog.String("request_id", id))
+	}
+	return h.Handler.Handle(ctx, record)
+}
+
+func (h LogHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return LogHandler{Handler: h.Handler.WithAttrs(attrs)}
+}
+
+func (h LogHandler) WithGroup(name string) slog.Handler {
+	return LogHandler{Handler: h.Handler.WithGroup(name)}
 }
 
 // LogRequests logs one JSON line per request, which `docker compose logs` and
