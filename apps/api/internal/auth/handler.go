@@ -23,8 +23,9 @@ const (
 
 // server implements the operations openapi.yaml tags auth (api.gen.go).
 type server struct {
-	admins Admins
-	tokens *Tokens
+	admins   Admins
+	tokens   *Tokens
+	failures *failures
 }
 
 var _ StrictServerInterface = (*server)(nil)
@@ -33,7 +34,8 @@ var _ StrictServerInterface = (*server)(nil)
 // in, DELETE logs out. Like links.NewHandler, it trusts the requests to have
 // been checked against openapi.yaml, a GET's login included.
 func NewHandler(admins Admins, tokens *Tokens) http.Handler {
-	strict := NewStrictHandlerWithOptions(&server{admins: admins, tokens: tokens}, nil, StrictHTTPServerOptions{
+	s := &server{admins: admins, tokens: tokens, failures: newFailures(time.Now)}
+	strict := NewStrictHandlerWithOptions(s, nil, StrictHTTPServerOptions{
 		RequestErrorHandlerFunc:  httpx.BadRequest,
 		ResponseErrorHandlerFunc: httpx.Fail,
 	})
@@ -42,6 +44,15 @@ func NewHandler(admins Admins, tokens *Tokens) http.Handler {
 
 func (s *server) LogIn(ctx context.Context, request LogInRequestObject) (LogInResponseObject, error) {
 	username := request.Body.Username
+	addr := visitor(request.Params.XForwardedFor)
+	// Before bcrypt: a refused try costs the api nothing.
+	if wait := s.failures.wait(addr); wait > 0 {
+		slog.WarnContext(ctx, "admin login refused: too many failures", "addr", addr)
+		return LogIn429JSONResponse{
+			Body:    Error{Error: "too many failed logins; try again later"},
+			Headers: LogIn429ResponseHeaders{RetryAfter: retryAfter(wait)},
+		}, nil
+	}
 	hash, err := s.admins.PasswordHash(ctx, username)
 	known := err == nil
 	if !known && !errors.Is(err, ErrNoAdmin) {
@@ -53,10 +64,12 @@ func (s *server) LogIn(ctx context.Context, request LogInRequestObject) (LogInRe
 		hash = unknownAdminHash()
 	}
 	if !passwordMatches(hash, request.Body.Password) || !known {
-		slog.WarnContext(ctx, "admin login failed", "username", username)
+		s.failures.add(addr)
+		slog.WarnContext(ctx, "admin login failed", "username", username, "addr", addr)
 		// One answer for both, for the same reason.
 		return LogIn401JSONResponse{Error: "wrong username or password"}, nil
 	}
+	s.failures.forget(addr)
 	token, expires, err := s.tokens.Issue(username)
 	if err != nil {
 		return nil, err

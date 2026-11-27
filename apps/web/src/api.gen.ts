@@ -195,6 +195,7 @@ export interface components {
     parameters: {
         Code: string;
         ForwardedProto: string;
+        ForwardedFor: string;
     };
     requestBodies: never;
     headers: {
@@ -432,6 +433,7 @@ export interface operations {
             query?: never;
             header?: {
                 "X-Forwarded-Proto"?: components["parameters"]["ForwardedProto"];
+                "X-Forwarded-For"?: components["parameters"]["ForwardedFor"];
             };
             path?: never;
             cookie?: never;
@@ -459,6 +461,16 @@ export interface operations {
             /** @description Wrong username or password, the one answer for both. */
             401: {
                 headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Too many failed logins from this address lately; Retry-After says how many seconds until the next try. */
+            429: {
+                headers: {
+                    "Retry-After": number;
                     [name: string]: unknown;
                 };
                 content: {

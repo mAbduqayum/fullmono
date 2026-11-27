@@ -198,6 +198,7 @@ paths:
       summary: Log in as an admin
       parameters:
         - $ref: "#/components/parameters/ForwardedProto"
+        - $ref: "#/components/parameters/ForwardedFor"
       requestBody:
         required: true
         content:
@@ -223,6 +224,19 @@ paths:
                 $ref: "#/components/schemas/Session"
         "401":
           description: Wrong username or password, the one answer for both.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "429":
+          description: >-
+            Too many failed logins from this address lately; Retry-After says
+            how many seconds until the next try.
+          headers:
+            Retry-After:
+              required: true
+              schema:
+                type: integer
           content:
             application/json:
               schema:
@@ -285,6 +299,14 @@ components:
       schema:
         type: string
         examples: ["https"]
+    # The visitor's address, which Caddy sets, ignoring whatever the visitor
+    # sent, and only Caddy reaches the api: the login's tries are counted by it.
+    ForwardedFor:
+      name: X-Forwarded-For
+      in: header
+      schema:
+        type: string
+        examples: ["203.0.113.7"]
 
   headers:
     SetCookie:

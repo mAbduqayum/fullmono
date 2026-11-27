@@ -26,6 +26,9 @@ type Session struct {
 	Username string `json:"username"`
 }
 
+// ForwardedFor Examples: 203.0.113.7
+type ForwardedFor = string
+
 // ForwardedProto Examples: https
 type ForwardedProto = string
 
@@ -46,6 +49,7 @@ type LogInJSONBody struct {
 // LogInParams defines parameters for LogIn.
 type LogInParams struct {
 	XForwardedProto *ForwardedProto `json:"X-Forwarded-Proto,omitempty"`
+	XForwardedFor   *ForwardedFor   `json:"X-Forwarded-For,omitempty"`
 }
 
 // LogInJSONRequestBody defines body for LogIn for application/json ContentType.
@@ -155,6 +159,25 @@ func (siw *ServerInterfaceWrapper) LogIn(w http.ResponseWriter, r *http.Request)
 		}
 
 		params.XForwardedProto = &XForwardedProto
+
+	}
+
+	// ------------- Optional header parameter "X-Forwarded-For" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Forwarded-For")]; found {
+		var XForwardedFor ForwardedFor
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Forwarded-For", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Forwarded-For", valueList[0], &XForwardedFor, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Forwarded-For", Err: err})
+			return
+		}
+
+		params.XForwardedFor = &XForwardedFor
 
 	}
 
@@ -432,6 +455,28 @@ func (response LogIn401JSONResponse) VisitLogInResponse(w http.ResponseWriter) e
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LogIn429ResponseHeaders struct {
+	RetryAfter int
+}
+
+type LogIn429JSONResponse struct {
+	Body    Error
+	Headers LogIn429ResponseHeaders
+}
+
+func (response LogIn429JSONResponse) VisitLogInResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Retry-After", fmt.Sprint(response.Headers.RetryAfter))
+	w.WriteHeader(429)
 	_, err := buf.WriteTo(w)
 	return err
 }

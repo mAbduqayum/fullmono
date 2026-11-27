@@ -88,6 +88,40 @@ func TestLogInRejects(t *testing.T) {
 	}
 }
 
+func TestTooManyFailuresWaitEvenWithTheRightPassword(t *testing.T) {
+	h, _ := testHandler(t)
+	from := func(addr string) func(*http.Request) {
+		return func(r *http.Request) { r.Header.Set("X-Forwarded-For", addr) }
+	}
+	wrong := `{"username": "alice", "password": "not her password"}`
+	for range maxFailures {
+		send(t, h, http.MethodPost, wrong, from("203.0.113.7"))
+	}
+	rec := send(t, h, http.MethodPost, alicesLogIn, from("203.0.113.7"))
+	if rec.Code != http.StatusTooManyRequests || rec.Header().Get("Retry-After") == "" ||
+		len(rec.Result().Cookies()) != 0 {
+		t.Errorf("status %d, Retry-After %q, cookies %v",
+			rec.Code, rec.Header().Get("Retry-After"), rec.Result().Cookies())
+	}
+	// Another address isn't held back.
+	if rec := send(t, h, http.MethodPost, alicesLogIn, from("198.51.100.1")); rec.Code != http.StatusOK {
+		t.Errorf("another address: status %d", rec.Code)
+	}
+}
+
+func TestALoginForgetsTheFailuresBeforeIt(t *testing.T) {
+	h, _ := testHandler(t)
+	wrong := `{"username": "alice", "password": "not her password"}`
+	for range 2 {
+		for range maxFailures - 1 {
+			send(t, h, http.MethodPost, wrong, nil)
+		}
+		if rec := send(t, h, http.MethodPost, alicesLogIn, nil); rec.Code != http.StatusOK {
+			t.Fatalf("status %d", rec.Code)
+		}
+	}
+}
+
 // whoIs runs a request with the cookie through Identify, and says who the
 // handler then sees and what CheckLogin says of it.
 func whoIs(t *testing.T, tokens *Tokens, cookie *http.Cookie) (admin string, problem error) {
