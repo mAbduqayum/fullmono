@@ -38,6 +38,11 @@ Update [schema.sql](../apps/api/migrations/schema.sql) by hand to match;
 `just test-integration` checks it does. Then `just gen`: sqlc reads the
 migrations, so it fails on a query the change breaks.
 
+A choice that's hard to undo, a dependency that shapes the code or a new
+service say, comes with a decision record in the same pull request:
+[docs/decisions](decisions/README.md) says when one is due, and how to write
+it.
+
 ## Commit messages
 
 Messages follow [Conventional Commits](https://www.conventionalcommits.org):

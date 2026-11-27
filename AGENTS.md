@@ -37,6 +37,9 @@ One app alone: `just api <recipe>`, `just web <recipe>`, `just e2e <recipe>`.
   checks it does.
 - A tool's version changes in `mise.toml`; bun's also in each `package.json`'s
   `packageManager` and the Dockerfiles' `oven/bun` tag.
+- A choice that's hard to undo (a dependency that shapes the code, a new
+  service, a change to how the stack deploys or logs in) comes with an ADR in
+  `docs/decisions/`, by the rules in its README.
 - Commit messages are Conventional Commits, scoped `api`, `web` or `e2e`. The
   hooks format, lint and check them: fix what they report, never
   `--no-verify`.

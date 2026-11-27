@@ -1,7 +1,8 @@
 # Architecture
 
-How fullmono's parts fit together. To run it, see the [README](../README.md);
-to change it, [CONTRIBUTING.md](CONTRIBUTING.md).
+How fullmono's parts fit together. Why they're these parts, and what each
+choice costs: [the decisions](decisions/README.md). To run it, see the
+[README](../README.md); to change it, [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Containers
 
@@ -26,13 +27,15 @@ flowchart TB
 | `dozzle`, `e2e` |                      | Only on demand: the log viewer and the end-to-end tests            |
 
 `migrate` and `api` are one image: the Go binary takes a command, `migrate`
-or none to serve.
+or none to serve. Why one server runs it all:
+[0005](decisions/0005-compose-on-one-server.md).
 
 ## A request's path
 
 Caddy is the only door. Any path that isn't `/api/*` or `/r/*` is a file it
 serves itself: `/`, the hashed `/assets/*`, and `/admin`, which has no file,
-so it gets `index.html` and the React app routes it in the browser.
+so it gets `index.html` and the React app routes it in the browser. Why one
+door: [0003](decisions/0003-one-origin-behind-caddy.md).
 
 Shortening a link, then following it:
 
@@ -72,7 +75,7 @@ parameters, body and answers, which this table sums up.
 
 An admin's login is a JWT, signed with `JWT_SECRET`, in an _httpOnly_ cookie:
 the browser sends it with every `/api/admin` request, and the page's scripts
-can't read it.
+can't read it ([0004](decisions/0004-a-jwt-in-a-cookie.md)).
 
 ## The contract
 
@@ -93,7 +96,8 @@ or expired login 401, and a parameter or body that doesn't fit 400. So which
 routes need an admin is the contract's `security`, not code in a handler.
 
 A route's change starts in openapi.yaml; CI fails when the generated code
-doesn't match it.
+doesn't match it. Why the contract comes first:
+[0002](decisions/0002-the-contract-comes-first.md).
 
 ## Data
 
@@ -107,4 +111,5 @@ They aren't related: a link belongs to nobody.
 
 The api's SQL is in [internal/db](../apps/api/internal/db/links.sql), one named
 query at a time. sqlc checks each against the schema the migrations build and
-generates a Go method for it (`just gen`), which the stores call.
+generates a Go method for it (`just gen`), which the stores call
+([0007](decisions/0007-sql-through-sqlc.md)).
