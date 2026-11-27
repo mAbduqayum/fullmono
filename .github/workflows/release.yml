@@ -1,5 +1,6 @@
 # Every push to main: check it (ci.yml), build both images and push them to
-# GitHub's container registry, then deploy them to the server.
+# GitHub's container registry, tagged with the commit's sha, then deploy them
+# to the server (deploy.yml).
 name: Release
 
 on:
@@ -61,33 +62,15 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.app }}
           cache-to: type=gha,scope=${{ matrix.app }},mode=max
 
-  # Runs once the repository has a server: set the DEPLOY_HOST variable
-  # (user@host) and the DEPLOY_SSH_KEY and DEPLOY_KNOWN_HOSTS secrets.
   deploy:
     needs: images
+    # deploy.yml checks this too, for its own "Run workflow"; here it skips the
+    # call while the repository has no server.
     if: vars.DEPLOY_HOST != ''
-    runs-on: ubuntu-latest
-    environment: production
-    env:
-      HOST: ${{ vars.DEPLOY_HOST }}
-      # Secrets reach the scripts as variables, never pasted into their text.
-      SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-      KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Trust the server and load the key
-        run: |
-          mkdir -p ~/.ssh
-          echo "$KNOWN_HOSTS" > ~/.ssh/known_hosts
-          eval "$(ssh-agent -s)"
-          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> "$GITHUB_ENV"
-          ssh-add - <<< "$SSH_KEY"
-      - name: Copy the compose file
-        run: scp deploy/compose.yaml "$HOST:fullmono/compose.yaml"
-      - name: Pull the new images and restart
-        run: |
-          # The sha expands here, on the runner, on purpose: the server has no $GITHUB_SHA.
-          # shellcheck disable=SC2029
-          ssh "$HOST" "cd fullmono && export TAG=$GITHUB_SHA && docker compose pull && docker compose up --detach --wait"
+    uses: ./.github/workflows/deploy.yml # zizmor: ignore[self-repository]
+    with:
+      tag: ${{ github.sha }}
+    # Only the two it needs, not `secrets: inherit`, which would pass them all.
+    secrets:
+      DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+      DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}

@@ -1,0 +1,75 @@
+# Deploys one released commit's images to the server. release.yml calls it
+# after each push to main; "Run workflow" on the Actions tab deploys an earlier
+# one, which is how a bad release rolls back. Only a commit release.yml built
+# has images: any sha from main's history since this workflow, not a branch's.
+#
+# It runs once the repository has a server: set the DEPLOY_HOST variable
+# (user@host) and the DEPLOY_SSH_KEY and DEPLOY_KNOWN_HOSTS secrets.
+name: Deploy
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: The full sha of the commit to deploy.
+        type: string
+        required: true
+    secrets:
+      DEPLOY_SSH_KEY:
+        required: false
+      DEPLOY_KNOWN_HOSTS:
+        required: false
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: A released commit's full sha (an earlier one rolls back)
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: vars.DEPLOY_HOST != ''
+    runs-on: ubuntu-latest
+    environment: production
+    # One deploy at a time: a rollback started during a release waits for it.
+    concurrency:
+      group: deploy
+      cancel-in-progress: false
+    env:
+      HOST: ${{ vars.DEPLOY_HOST }}
+      # Inputs and secrets reach the scripts as variables, never pasted into
+      # their text, where a crafted value would run as part of the script.
+      TAG: ${{ inputs.tag }}
+      SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+      KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+    steps:
+      - name: Check the tag is a commit's full sha
+        run: |
+          if ! [[ $TAG =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::tag must be a commit's full sha, 40 hex digits: got '$TAG'"
+            exit 1
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # That commit's compose file, which its images were built to run with.
+          ref: ${{ inputs.tag }}
+          persist-credentials: false
+      - name: Trust the server and load the key
+        run: |
+          mkdir -p ~/.ssh
+          echo "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          eval "$(ssh-agent -s)"
+          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> "$GITHUB_ENV"
+          ssh-add - <<< "$SSH_KEY"
+      - name: Copy the compose file
+        run: scp deploy/compose.yaml "$HOST:fullmono/compose.yaml"
+      - name: Pull the images and restart
+        run: |
+          # The server's .env records the tag, so a plain `docker compose …`
+          # there (logs, set-admin) runs what's deployed. $TAG expands here, on
+          # the runner, on purpose: it's checked above, and the server has none.
+          # shellcheck disable=SC2029
+          ssh "$HOST" "cd fullmono && sed -i '/^TAG=/d' .env && echo TAG=$TAG >> .env && docker compose pull && docker compose up --detach --wait"
