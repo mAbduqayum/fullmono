@@ -29,7 +29,8 @@ run inside a transaction, needs a file of its own.
   [check-migrations.sh](../../../scripts/check-migrations.sh) refuses an edit,
   on `git push` and in CI.
 - **Keep the running api working.** A deploy migrates first, while the old api
-  still serves, and a rollback runs the old api on the new schema: every
+  still serves, and a rollback runs the old api on the new schema (its
+  `migrate` sees migrations it doesn't have, and leaves them): every
   migration has to work with the code before it too. So a new column is
   nullable or has a default, and a rename or a drop takes steps, each in its
   own release (expand, then contract):
